@@ -202,69 +202,60 @@ class LiveAPI {
     this.audioStreamerRef = null;
     this.connected = false;
     this.config = {
-      model: "models/gemini-2.0-flash-exp",
+      model: "models/gemini-2.0-flash-exp"
     };
     this.volume = 0;
-
-    this.initializeAudioStreamer();
-    this.setupClientEventHandlers();
+    this.attachClientListeners();
   }
 
-  async initializeAudioStreamer() {
-    if (!this.audioStreamerRef) {
-      const audioCtx = await audioContext({ id: "audio-out" });
-      this.audioStreamerRef = new AudioStreamer(audioCtx);
-      await this.audioStreamerRef.addWorklet("vumeter-out", VolMeterWorket, (ev) => {
-        this.volume = ev.data.volume;
-        // You can update the DOM element to show the volume if needed
-      });
-    }
-  }
-
-  setupClientEventHandlers() {
+  attachClientListeners() {
     this.client
-      .on("close", this.onClose.bind(this))
-      .on("interrupted", this.stopAudioStreamer.bind(this))
-      .on("audio", this.onAudio.bind(this));
-  }
-
-  onClose() {
-    this.connected = false;
-    // Update DOM or notify user about disconnection
-  }
-
-  stopAudioStreamer() {
-    this.audioStreamerRef?.stop();
-  }
-
-  onAudio(data) {
-    this.audioStreamerRef?.addPCM16(new Uint8Array(data));
+      .on("close", () => {
+        this.connected = false;
+        console.log("Connection closed");
+      })
+      .on("interrupted", () => {
+        if (this.audioStreamerRef) {
+          this.audioStreamerRef.stop();
+        }
+      })
+      .on("audio", (data) => {
+        if (this.audioStreamerRef) {
+          this.audioStreamerRef.addPCM16(new Uint8Array(data));
+        }
+      });
   }
 
   async connect() {
-    console.log(this.config);
     if (!this.config) {
-      throw new Error("config has not been set");
+      throw new Error("Configuration has not been set");
     }
     this.client.disconnect();
     await this.client.connect(this.config);
     this.connected = true;
-    // Update DOM or notify user about successful connection
+    console.log("Connected successfully!", this.config);
   }
 
   disconnect() {
     this.client.disconnect();
     this.connected = false;
-    // Update DOM or notify user about disconnection
+    console.log("Disconnected successfully.");
   }
 
   setConfig(newConfig) {
     this.config = newConfig;
+    console.log("New config set:", this.config);
+  }
+
+  getConfig() {
+    return this.config;
+  }
+
+  isConnected() {
+    return this.connected;
   }
 }
-
 function useLiveAPI({ url, apiKey }) {
-  const liveAPI = new LiveAPI({ url, apiKey });
-  return liveAPI;
+  return new LiveAPI({ url, apiKey });
 }
 export { AudioRecorder, useLiveAPI }

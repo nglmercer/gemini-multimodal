@@ -9,6 +9,9 @@ import { difference } from "lodash";
 import { blobToJSON, base64ToArrayBuffer,functions1 } from "./utils";
 import {AudioRecorder, useLiveAPI} from './media/audiorecorder.js';
 import { MultimodalLiveClient } from "./clientemit.js";
+import { SchemaType } from "@google/generative-ai";
+import { live } from 'lit/directives/live.js';
+
 const audioRecorder = new AudioRecorder();
 /* audioRecorder.start();
 audioRecorder.on("data", (data) => {
@@ -122,22 +125,8 @@ class MultimodalLiveAPI {
 
 
 const liveAPI = new MultimodalLiveAPI({ url: uri, apiKey: API_KEY });
-liveAPI.connect();
-function sendprompt(text) {
-  const prompt = {
-    role: "user",
-    parts: [
-      {
-        content: text,
-        mimeType: "text/plain",
-      },
-    ],
-  };
-  return prompt;
-}
-const prompt = sendprompt("Hello, how are you?");
 setTimeout(() => {
-  //liveAPI.client.sendquestion(prompt);
+  liveAPI.connect();
 }, 1000);
 
 liveAPI.client.on("toolcall", (toolCall) => {
@@ -156,25 +145,22 @@ liveAPI.client.on("turncomplete", () => {
   console.log("turncomplete");
 });
 const liveAPIContext = {
-  client: null,
+  liveAPI: null,
   setLiveAPI(liveAPI) {
-    this.client = liveAPI;
+    this.liveAPI = liveAPI;
   },
   getLiveAPI() {
-    if (!this.client) {
-      throw new Error("useLiveAPIContext must be used within a LiveAPIProvider");
+    if (!this.liveAPI) {
+      throw new Error("useLiveAPI must be used within a LiveAPIProvider");
     }
-    return this.client;
-  },
+    return this.liveAPI;
+  }
 };
-function LiveAPIProvider({ url, apiKey, children }) {
-  // Usar useLiveAPI para crear una instancia de LiveAPI
-  const liveAPI = useLiveAPI({ url, apiKey });
 
-  // Establecer el contexto
+function LiveAPIProvider({ url, apiKey, children }) {
+  const liveAPI = useLiveAPI({ url, apiKey });
   liveAPIContext.setLiveAPI(liveAPI);
 
-  // Ejecutar los children si son funciones, o procesar los elementos del DOM según sea necesario
   if (typeof children === "function") {
     children();
   } else if (Array.isArray(children)) {
@@ -194,4 +180,44 @@ const callControlBar = document.querySelector('call-control-bar');
 callControlBar.addEventListener('button-click', (e) => {
   console.log('Button Clicked:', e.detail);
 });
+const declaration = {
+  name: "render_altair",
+  description: "Displays an altair graph in json format.",
+  parameters: {
+    type: SchemaType.OBJECT,
+    properties: {
+      json_graph: {
+        type: SchemaType.STRING,
+        description:
+          "JSON STRING representation of the graph to render. Must be a string, not a json object",
+      },
+    },
+    required: ["json_graph"],
+  },
+};
+const config = {
+  model: "models/gemini-2.0-flash-exp",
+  systemInstruction: {
+    parts: [
+      {
+        text: 'You are my helpful assistant. Any time I ask you for a graph call the "render_altair" function I have provided you. Dont ask for additional information just make your best judgement.',
+      },
+    ],
+  },
+  tools: [{ googleSearch: {} }, { functionDeclarations: [declaration] }],
+}
+const onToolCall = (toolCall) => {
+  console.log(`got toolcall`, toolCall);
+  const fc = toolCall.functionCalls.find(
+      (fc) => fc.name === declaration.name
+  );
+  if (fc) {
+      const str = (fc.args).json_graph;
+      setJSONString(str);
+  }
+};
+const client = liveAPIContext.getLiveAPI();
+console.log(client);
+client.setConfig(config);
+client.client.on("toolcall", onToolCall);
 export { liveAPIContext };
