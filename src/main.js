@@ -13,11 +13,12 @@ import { SchemaType } from "@google/generative-ai";
 import { live } from 'lit/directives/live.js';
 
 const audioRecorder = new AudioRecorder();
-/* audioRecorder.start();
+audioRecorder.start();
 audioRecorder.on("data", (data) => {
-  console.log("data", data);
-}); */
+  onData(data);
+});
 const onData = (base64) => {
+  client.
   client.sendRealtimeInput([
     {
       mimeType: "audio/pcm;rate=16000",
