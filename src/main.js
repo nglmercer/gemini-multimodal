@@ -156,15 +156,15 @@ liveAPI.client.on("turncomplete", () => {
   console.log("turncomplete");
 });
 const liveAPIContext = {
-  liveAPI: null,
+  client: null,
   setLiveAPI(liveAPI) {
-    this.liveAPI = liveAPI;
+    this.client = liveAPI;
   },
   getLiveAPI() {
-    if (!this.liveAPI) {
+    if (!this.client) {
       throw new Error("useLiveAPIContext must be used within a LiveAPIProvider");
     }
-    return this.liveAPI;
+    return this.client;
   },
 };
 function LiveAPIProvider({ url, apiKey, children }) {
@@ -194,3 +194,4 @@ const callControlBar = document.querySelector('call-control-bar');
 callControlBar.addEventListener('button-click', (e) => {
   console.log('Button Clicked:', e.detail);
 });
+export { liveAPIContext };

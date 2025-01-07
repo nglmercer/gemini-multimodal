@@ -267,6 +267,7 @@ class LocalStorageManager {
     return bytes.buffer;
   }
   const functions1 = {
+    
     ClientContentMessage,
     isInterrupted,
     isModelTurn,
