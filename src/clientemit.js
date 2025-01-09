@@ -188,6 +188,10 @@ class MultimodalLiveClient extends EventEmitter {
             }
 
             if (isModelTurn(serverContent)) {
+                if (!serverContent.modelTurn || !serverContent.modelTurn.parts) {
+                    console.warn("modelTurn o parts no están definidos");
+                    return serverContent;
+                  }
                 let parts = serverContent.modelTurn.parts;
                 const audioParts = parts.filter(
                     (p) => p.inlineData && p.inlineData.mimeType.startsWith("audio/pcm")

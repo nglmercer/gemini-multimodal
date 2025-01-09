@@ -327,7 +327,10 @@ class LocalStorageManager {
         console.log(`server.audio`, `buffer (${data.byteLength})`);
       }
     });
+    playAudio(data.modelTurn.parts[0]);
+
     if (!otherParts.length) {
+      console.log("no hay otros parts", otherParts);
       return;
     }
 
@@ -336,6 +339,12 @@ class LocalStorageManager {
     console.log("isModelTurn content", content);
     return data.modelTurn;
   }
+  function playAudio(data) {
+    console.log("playAudio", data);
+    const player = document.getElementById('voiceplayer');
+  player.setAudioData(data.inlineData.data, data.inlineData.mimeType);
+  }
+
   function isServerContentMessage(data) {
     console.log("isServerContentMessage", data);
     return data.serverContent;

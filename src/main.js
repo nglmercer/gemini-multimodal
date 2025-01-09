@@ -4,6 +4,7 @@ import { LocalStorageManager } from './utils.js';
 import './components/todoc.js';
 import './components/TodoForm.js';
 import'./components/state.js';
+import './components/voicecomponent.js'
 import { EventEmitter } from "eventemitter3";
 import { difference } from "lodash";
 import { blobToJSON, base64ToArrayBuffer,functions1 } from "./utils";
@@ -175,6 +176,7 @@ function LiveAPIProvider({ url, apiKey, children }) {
 LiveAPIProvider({ url: uri, apiKey: API_KEY });
 document.querySelector('#app').innerHTML = `
   <div class="container mx-auto py-8">
+  <audio-stream-player id="voiceplayer"></audio-stream-player>
     <call-control-bar state="active"></call-control-bar>
     </div>
 `;
