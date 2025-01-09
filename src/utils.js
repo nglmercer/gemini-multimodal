@@ -1,4 +1,4 @@
-import { difference } from "lodash";
+import { difference, set } from "lodash";
 class LocalStorageManager {
     constructor(key) {
       this.key = key;
@@ -341,8 +341,10 @@ class LocalStorageManager {
   }
   function playAudio(data) {
     console.log("playAudio", data);
-    const player = document.getElementById('voiceplayer');
-  player.setAudioData(data.inlineData.data, data.inlineData.mimeType);
+/*     const player = document.getElementById('voiceplayer');
+  player.setAudioData(data.inlineData.data, data.inlineData.mimeType); */
+  setAudioData(data.inlineData.data, data.inlineData.mimeType);
+
   }
 
   function isServerContentMessage(data) {
@@ -365,4 +367,120 @@ class LocalStorageManager {
     console.log("isTurnComplete", data);
     return data.turnComplete;
   }
+  class AudioPlayer {
+    constructor() {
+        this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        this.audioQueue = [];
+        this.isPlaying = false;
+    }
+
+    async setAudioData(data, mimeType) {
+      if (mimeType.includes("audio/pcm")) {
+          // Convertir PCM a WAV
+          const pcmData = this.base64ToArrayBuffer(data);
+          const wavData = encodePCMToWAV(pcmData, 24000);
+          this.addToQueue(wavData, "audio/wav");
+      } else {
+          this.addToQueue(data, mimeType);
+      }
+  
+      if (!this.isPlaying) {
+          this.playNextChunk();
+      }
+  }
+
+    addToQueue(data, mimeType) {
+        this.audioQueue.push({ data, mimeType });
+    }
+
+    async playNextChunk() {
+        if (this.audioQueue.length === 0) {
+            this.isPlaying = false;
+            return;
+        }
+
+        this.isPlaying = true;
+        const { data, mimeType } = this.audioQueue.shift();
+
+        // Decodificar el audio
+        const audioBuffer = await this.decodeAudioData(data, mimeType);
+
+        // Crear un buffer source
+        const source = this.audioContext.createBufferSource();
+        source.buffer = audioBuffer;
+
+        // Conectar el source al destino de audio (altavoces)
+        source.connect(this.audioContext.destination);
+
+        // Reproducir el audio
+        source.start();
+
+        // Cuando termine de reproducirse, pasar al siguiente chunk
+        source.onended = () => {
+            this.playNextChunk();
+        };
+    }
+
+    async decodeAudioData(data, mimeType) {
+      try {
+          const audioBuffer = await this.audioContext.decodeAudioData(data);
+          return audioBuffer;
+      } catch (error) {
+          console.error("Error decoding audio data:", error);
+          throw error;
+      }
+  }
+
+    base64ToArrayBuffer(base64) {
+      const binaryString = atob(base64);
+      const len = binaryString.length;
+      const bytes = new Uint8Array(len);
+      for (let i = 0; i < len; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+      }
+      return bytes.buffer;
+  }
+}
+
+const audioPlayer = new AudioPlayer();
+function setAudioData(data, mimeType) {
+    audioPlayer.setAudioData(data, mimeType);
+}
+function encodePCMToWAV(pcmData, sampleRate) {
+  // Asegúrate de que pcmData sea un ArrayBuffer o un Uint8Array
+  if (!(pcmData instanceof ArrayBuffer)) {
+      throw new Error("pcmData debe ser un ArrayBuffer");
+  }
+
+  const pcmArray = new Uint8Array(pcmData);
+  const buffer = new ArrayBuffer(44 + pcmArray.length); // 44 bytes para la cabecera WAV
+  const view = new DataView(buffer);
+
+  // Escribir la cabecera WAV
+  const writeString = (offset, string) => {
+      for (let i = 0; i < string.length; i++) {
+          view.setUint8(offset + i, string.charCodeAt(i));
+      }
+  };
+
+  writeString(0, 'RIFF'); // ChunkID
+  view.setUint32(4, 36 + pcmArray.length, true); // ChunkSize (tamaño total del archivo menos 8 bytes)
+  writeString(8, 'WAVE'); // Format
+  writeString(12, 'fmt '); // Subchunk1ID
+  view.setUint32(16, 16, true); // Subchunk1Size (16 para PCM)
+  view.setUint16(20, 1, true); // AudioFormat (1 para PCM)
+  view.setUint16(22, 1, true); // NumChannels (1 para mono)
+  view.setUint32(24, sampleRate, true); // SampleRate
+  view.setUint32(28, sampleRate * 2, true); // ByteRate (SampleRate * NumChannels * BitsPerSample/8)
+  view.setUint16(32, 2, true); // BlockAlign (NumChannels * BitsPerSample/8)
+  view.setUint16(34, 16, true); // BitsPerSample (16 para PCM)
+  writeString(36, 'data'); // Subchunk2ID
+  view.setUint32(40, pcmArray.length, true); // Subchunk2Size (tamaño de los datos PCM)
+
+  // Escribir los datos PCM
+  const pcmView = new Uint8Array(buffer, 44); // Escribir a partir del byte 44
+  pcmView.set(pcmArray);
+
+  return buffer;
+}
   export { functions1,LocalStorageManager, audioContext, blobToJSON, base64ToArrayBuffer, globalmap };
