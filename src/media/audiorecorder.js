@@ -139,7 +139,6 @@ class AudioRecorder extends EventEmitter {
               
               // Create audio context with the desired sample rate
               this.audioContext = new (window.AudioContext || window.webkitAudioContext)({
-                  sampleRate: this.sampleRate
               });
 
               // Create the source with the same audio context
