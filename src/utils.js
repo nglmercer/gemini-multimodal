@@ -1,3 +1,4 @@
+import { difference } from "lodash";
 class LocalStorageManager {
     constructor(key) {
       this.key = key;
@@ -298,24 +299,61 @@ class LocalStorageManager {
     return data;
   }
   function isInterrupted(data) {
+    console.log("isInterrupted", data);
     return data.interrupted;
   }
   function isModelTurn(data) {
+    const  serverContent  = data;
+
+    console.log("isModelTurn", data);
+    if (!serverContent.modelTurn || !serverContent.modelTurn.parts) {
+      console.warn("modelTurn o parts no están definidos");
+      return data;
+    }
+    let parts = serverContent.modelTurn?.parts;
+    const audioParts = parts.filter(
+      (p) => p.inlineData && p.inlineData.mimeType.startsWith("audio/pcm"),
+    );
+    const base64s = audioParts.map((p) => p.inlineData?.data);
+
+    // strip the audio parts out of the modelTurn
+    const otherParts = difference(parts, audioParts);
+    // console.log("otherParts", otherParts);
+
+    base64s.forEach((b64) => {
+      if (b64) {
+        const data = base64ToArrayBuffer(b64);
+        //this.emit("audio", data);
+        console.log(`server.audio`, `buffer (${data.byteLength})`);
+      }
+    });
+    if (!otherParts.length) {
+      return;
+    }
+
+    parts = otherParts;
+    const content = { modelTurn: { parts } };
+    console.log("isModelTurn content", content);
     return data.modelTurn;
   }
   function isServerContentMessage(data) {
+    console.log("isServerContentMessage", data);
     return data.serverContent;
   }
   function isSetupCompleteMessage(data) {
+    console.log("isSetupCompleteMessage", data);
     return data.setupComplete;
   }
   function isToolCallCancellationMessage(data) {
+    console.log("isToolCallCancellationMessage", data);
     return data.toolCallCancellation;
   }
   function isToolCallMessage(data) {
+    console.log("isToolCallMessage", data);
     return data.toolCall;
   }
   function isTurnComplete(data) {
+    console.log("isTurnComplete", data);
     return data.turnComplete;
   }
   export { functions1,LocalStorageManager, audioContext, blobToJSON, base64ToArrayBuffer, globalmap };

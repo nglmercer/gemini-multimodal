@@ -18,13 +18,17 @@ audioRecorder.on("data", (data) => {
   onData(data);
 });
 const onData = (base64) => {
-  client.
-  client.sendRealtimeInput([
+  client.client.sendRealtimeInput([
     {
       mimeType: "audio/pcm;rate=16000",
       data: base64,
     },
   ]);
+};
+const onSubmit = (e) => {
+  if (e) e.preventDefault();
+  const textInput = "texto de prueba";
+  client.client.send([{ text: textInput }]);
 };
 const {
   ClientContentMessage,
@@ -126,9 +130,7 @@ class MultimodalLiveAPI {
 
 
 const liveAPI = new MultimodalLiveAPI({ url: uri, apiKey: API_KEY });
-setTimeout(() => {
-  liveAPI.connect();
-}, 1000);
+
 
 liveAPI.client.on("toolcall", (toolCall) => {
   console.log("toolcall", toolCall);
@@ -216,9 +218,14 @@ const onToolCall = (toolCall) => {
       const str = (fc.args).json_graph;
       setJSONString(str);
   }
+  
 };
 const client = liveAPIContext.getLiveAPI();
 console.log(client);
-client.setConfig(config);
+client.client.setConfig(config);
 client.client.on("toolcall", onToolCall);
+setTimeout(() => {
+  liveAPI.connect();
+  onSubmit();
+}, 2222);
 export { liveAPIContext };

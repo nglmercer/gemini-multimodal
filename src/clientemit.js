@@ -50,8 +50,8 @@ class MultimodalLiveClient extends EventEmitter {
         }
 
         this.isConnecting = true;
-        this.config = config;
-
+        if (config) this.config = config;
+        console.log("config", this.config);
         try {
             const ws = new WebSocket(this.url);
 
@@ -115,7 +115,9 @@ class MultimodalLiveClient extends EventEmitter {
         this.connected = false;
         reject(new Error(message));
     }
-
+    setConfig(config) {
+        this.config = config;
+    }
     handleClose(ev) {
         console.log(ev);
         this.connected = false;
@@ -155,7 +157,7 @@ class MultimodalLiveClient extends EventEmitter {
 
     async receive(blob) {
         const response = await blobToJSON(blob);
-
+        console.log("response", response);
         if (isToolCallMessage(response)) {
             this.log("server.toolCall", response);
             this.emit("toolcall", response.toolCall);
@@ -246,6 +248,7 @@ class MultimodalLiveClient extends EventEmitter {
     }
 
     sendToolResponse(toolResponse) {
+        console.log("sendToolResponse", toolResponse);
         const message = { toolResponse };
         this._sendDirect(message);
         this.log(`client.toolResponse`, message);
@@ -253,6 +256,7 @@ class MultimodalLiveClient extends EventEmitter {
 
     send(parts, turnComplete = true) {
         parts = Array.isArray(parts) ? parts : [parts];
+        console.log("send", parts, turnComplete);
         const content = {
             role: "user",
             parts,
