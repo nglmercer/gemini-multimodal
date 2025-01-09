@@ -26,9 +26,8 @@ const onData = (base64) => {
     },
   ]);
 };
-const onSubmit = (e) => {
+const onSubmit = (textInput = "texto de prueba",e) => {
   if (e) e.preventDefault();
-  const textInput = "texto de prueba";
   client.client.send([{ text: textInput }]);
 };
 const {
@@ -228,6 +227,6 @@ client.client.setConfig(config);
 client.client.on("toolcall", onToolCall);
 setTimeout(() => {
   liveAPI.connect();
-  onSubmit();
+  //onSubmit();
 }, 2222);
 export { liveAPIContext };

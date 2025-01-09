@@ -287,13 +287,6 @@ class LocalStorageManager {
     ToolCallCancellation,
     ToolResponseMessage, */
   }
-  class clientevents {
-    constructor() {
-    }
-    on(event, callback) {}
-    off(event, callback) {}
-    emit(event, data) {}
-  }
   function ClientContentMessage(data) {
     console.log("ClientContentMessage", data);
     return data;
@@ -483,4 +476,4 @@ function encodePCMToWAV(pcmData, sampleRate) {
 
   return buffer;
 }
-  export { functions1,LocalStorageManager, audioContext, blobToJSON, base64ToArrayBuffer, globalmap };
+export { functions1,LocalStorageManager, audioContext, blobToJSON, base64ToArrayBuffer, globalmap };
