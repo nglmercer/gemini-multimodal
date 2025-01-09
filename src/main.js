@@ -5,6 +5,7 @@ import './components/todoc.js';
 import './components/TodoForm.js';
 import'./components/state.js';
 import './components/voicecomponent.js'
+import './components/audioviewer.js'
 import { EventEmitter } from "eventemitter3";
 import { difference } from "lodash";
 import { blobToJSON, base64ToArrayBuffer,functions1 } from "./utils";
@@ -183,6 +184,10 @@ document.querySelector('#app').innerHTML = `
 const callControlBar = document.querySelector('call-control-bar');
 callControlBar.addEventListener('button-click', (e) => {
   console.log('Button Clicked:', e.detail);
+  if (e.detail.buttonType === "mic") {
+    audioRecorder.start();
+    console.log("audioRecorder.start()");
+  }
 });
 const declaration = {
   name: "render_altair",
@@ -227,6 +232,6 @@ client.client.setConfig(config);
 client.client.on("toolcall", onToolCall);
 setTimeout(() => {
   liveAPI.connect();
-  //onSubmit();
+  onSubmit("hola como estas, hablame en español");
 }, 2222);
 export { liveAPIContext };

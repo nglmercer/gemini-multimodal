@@ -1,5 +1,4 @@
-import { set } from "lodash";
-
+/* 
 class AudioStreamPlayer extends HTMLElement {
   constructor() {
     super();
@@ -109,3 +108,4 @@ class AudioStreamPlayer extends HTMLElement {
 
 // Registrar el componente
 customElements.define('audio-stream-player', AudioStreamPlayer);
+ */

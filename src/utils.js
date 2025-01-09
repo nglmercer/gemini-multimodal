@@ -436,9 +436,16 @@ class LocalStorageManager {
 }
 
 const audioPlayer = new AudioPlayer();
-function setAudioData(data, mimeType) {
+async function setAudioData(data, mimeType) {
     audioPlayer.setAudioData(data, mimeType);
+    const visualizer = document.querySelector('audio-visualizer');
+    if (!visualizer) {
+      throw new Error('Audio visualizer element not found');
+    }
+
+    await visualizer.updateData(data, 'audio/pcm;rate=24000');
 }
+
 function encodePCMToWAV(pcmData, sampleRate) {
   // Asegúrate de que pcmData sea un ArrayBuffer o un Uint8Array
   if (!(pcmData instanceof ArrayBuffer)) {
