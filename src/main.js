@@ -1,8 +1,4 @@
 import './style.css';
-import { tw } from 'twind';
-import { LocalStorageManager } from './utils.js';
-import './components/todoc.js';
-import './components/TodoForm.js';
 import'./components/state.js';
 import './components/voicecomponent.js'
 import './components/audioviewer.js'
@@ -10,7 +6,9 @@ import { EventEmitter } from "eventemitter3";
 import { difference } from "lodash";
 import { blobToJSON, base64ToArrayBuffer,functions1 } from "./utils";
 import {AudioRecorder, useLiveAPI} from './media/audiorecorder.js';
-import { MultimodalLiveClient } from "./clientemit.js";
+import { ScreenCapture } from './media/screencapture.js';
+import { WebcamCapture } from './media/videocapture,js';
+import { MultimodalLiveClient, MultimodalLiveAPI} from "./clientemit.js";
 import { SchemaType } from "@google/generative-ai";
 import { live } from 'lit/directives/live.js';
 
@@ -20,92 +18,8 @@ const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 if (typeof API_KEY !== "string") {  throw new Error("set REACT_APP_GEMINI_API_KEY in .env");} else {
   console.log("API_KEY:", API_KEY);
 }
-class MultimodalLiveAPI {
-  constructor({ url, apiKey }) {
-    this.url = url;
-    this.apiKey = apiKey;
-    this.client = new MultimodalLiveClient({ url, apiKey });
-    this.audioStreamer = null;
-    this.connected = false;
-    this.config = { model: "models/gemini-2.0-flash-exp" };
-    this.volume = 0;
-  }
-
-  async initializeAudioStreamer() {
-    if (!this.audioStreamer) {
-      const audioCtx = await audioContext({ id: "audio-out" });
-      this.audioStreamer = new AudioStreamer(audioCtx);
-
-      await this.audioStreamer.addWorklet("vumeter-out", VolMeterWorket, (ev) => {
-        this.volume = ev.data.volume;
-        console.log("Current Volume:", this.volume);
-      });
-    }
-  }
-
-  attachClientListeners() {
-    const onClose = () => {
-      this.connected = false;
-      console.log("Connection closed.");
-    };
-
-    const stopAudioStreamer = () => {
-      if (this.audioStreamer) this.audioStreamer.stop();
-    };
-
-    const onAudio = (data) => {
-      if (this.audioStreamer) {
-        this.audioStreamer.addPCM16(new Uint8Array(data));
-      }
-    };
-
-    this.client
-      .on("close", onClose)
-      .on("interrupted", stopAudioStreamer)
-      .on("audio", onAudio);
-  }
-
-  detachClientListeners() {
-    this.client.off("close").off("interrupted").off("audio");
-  }
-
-  async connect() {
-    if (!this.config) {
-      throw new Error("Configuration has not been set");
-    }
-
-    this.client.disconnect();
-    await this.client.connect(this.config);
-    this.connected = true;
-    console.log("Connected successfully!",this.config);
-  }
-
-  async disconnect() {
-    this.client.disconnect();
-    this.connected = false;
-    console.log("Disconnected successfully.");
-  }
-
-  setConfig(config) {
-    this.config = config;
-  }
-
-  getConfig() {
-    return this.config;
-  }
-
-  getVolume() {
-    return this.volume;
-  }
-
-  isConnected() {
-    return this.connected;
-  }
-}
-
 
 const liveAPI = new MultimodalLiveAPI({ url: uri, apiKey: API_KEY });
-
 
 liveAPI.client.on("toolcall", (toolCall) => {
   console.log("toolcall", toolCall);

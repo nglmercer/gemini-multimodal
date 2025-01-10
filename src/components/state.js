@@ -104,17 +104,17 @@ class CallControlBar extends LitElement {
     };
     this.activeicons = {
       "mic": "mic_off",
-      "video": "cancel_presentation",
-      "cancelvideo": "cancel_presentation",
+      "video": "hangout_video_off",
       "pause": "play_arrow",
-      "connect": "play_arrow"
+      "connect": "play_arrow",
+      "screen": "cancel_presentation"
     }
     this.inactiveicons = {
       "mic": "mic",
       "video": "videocam",
       "pause": "pause",
-      "cancelvideo": "cancel_presentation",
-      "connect": "pause"
+      "connect": "pause",
+      "screen": "screen_share"
     }
   }
 
@@ -146,6 +146,7 @@ class CallControlBar extends LitElement {
         <nav class="actions-nav ${this.state === 'inactive' ? 'disabled' : ''}">
           ${this.getbutton("mic")}
           ${this.getbutton("video")}
+          ${this.getbutton("screen")}
           <div class="action-button no-action outlined">
             <div class="audioPulse">
               <div style="animation-delay: 0ms; height: 4px;"></div>
