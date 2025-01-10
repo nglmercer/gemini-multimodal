@@ -185,8 +185,8 @@ const callControlBar = document.querySelector('call-control-bar');
 callControlBar.addEventListener('button-click', (e) => {
   console.log('Button Clicked:', e.detail);
   if (e.detail.buttonType === "mic") {
-    audioRecorder.start();
-    console.log("audioRecorder.start()");
+/*     audioRecorder.start();
+ */    console.log("audioRecorder.start()");
   }
 });
 const declaration = {
@@ -232,6 +232,6 @@ client.client.setConfig(config);
 client.client.on("toolcall", onToolCall);
 setTimeout(() => {
   liveAPI.connect();
-  onSubmit("hola como estas, hablame en español");
-}, 2222);
+/*   onSubmit("hola como estas, hablame en español, y dime la fecha actual en string y no en number");
+ */}, 2222);
 export { liveAPIContext };

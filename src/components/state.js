@@ -81,15 +81,39 @@ class CallControlBar extends LitElement {
     .text-indicator {
       margin-left: 10px;
     }
+    .action-button.active {
+      background: #5c5c5c;
+    }
   `;
 
   static properties = {
     state: { type: String, reflect: true },
+    buttonStates: { type: Object },
   };
 
   constructor() {
     super();
     this.state = 'inactive';
+    this.buttonStates = {
+      mic: false,
+      video: false,
+      cancelvideo: false,
+      connect: false
+    };
+    this.activeicons = {
+      "mic": "mic_off",
+      "video": "Videocam",
+      "cancelvideo": "cancel_presentation",
+      "pause": "play_arrow",
+      "connect": "play_arrow"
+    }
+    this.inactiveicons = {
+      "mic": "mic",
+      "video": "cancel_presentation",
+      "pause": "pause",
+      "cancelvideo": "cancel_presentation",
+      "connect": "pause"
+    }
   }
 
   // Add firstUpdated lifecycle method to set up events
@@ -114,13 +138,13 @@ class CallControlBar extends LitElement {
 
   render() {
     return html`
-        <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet">
+      <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet">
       <section class="control-tray">
         <canvas style="display: none;" width="480" height="270"></canvas>
         <nav class="actions-nav ${this.state === 'inactive' ? 'disabled' : ''}">
-          <button class="action-button mic-button">
-            <span class="material-symbols-outlined filled">mic_off</span>
-          </button>
+          ${this.getbutton("mic")}
+          ${this.getbutton("video")}
+          ${this.getbutton("cancelvideo")}
           <div class="action-button no-action outlined">
             <div class="audioPulse">
               <div style="animation-delay: 0ms; height: 4px;"></div>
@@ -128,39 +152,43 @@ class CallControlBar extends LitElement {
               <div style="animation-delay: 266ms; height: 4px;"></div>
             </div>
           </div>
-          <button class="action-button">
-            <span class="material-symbols-outlined">cancel_presentation</span>
-          </button>
-          <button class="action-button">
-            <span class="material-symbols-outlined">videocam</span>
-          </button>
         </nav>
         <div class="connection-container">
           <div class="connection-button-container">
-            <button class="action-button connect-toggle">
-              <span class="material-symbols-outlined filled">${this.state === 'active' ? 'pause' : 'play_arrow'}</span>
-            </button>
+            ${this.getbutton("connect")}
           </div>
-          <span class="text-indicator">${this.state === 'active' ? 'Streaming' : 'Disconnected'}</span>
+          <span class="text-indicator">${this.state === 'active' ? 'Stream' : 'Disconnected'}</span>
         </div>
       </section>
     `;
   }
-
+  getbutton(type, icon) {
+    return html`
+      <button 
+        class="action-button ${type}-button ${this.buttonStates[type] ? 'active' : ''}" 
+        data-type="${type}"
+      >
+        <span class="material-symbols-outlined">
+          ${this.getButtonIcon(type)}
+        </span>
+      </button>
+    `;
+  }
   emitevent() {
     const allbuttons = this.shadowRoot.querySelectorAll('button');
-    console.log(allbuttons);
     allbuttons.forEach(button => {
-      button.addEventListener('click', () => {
-        // Add button identifier to the event detail
-        const buttonType = button.classList.contains('mic-button') ? 'mic' :
-                          button.classList.contains('connect-toggle') ? 'connect' : 'other';
+      button.addEventListener('click', (e) => {
+        const buttonType = button.getAttribute('data-type');
+        
+        // Toggle button state
+        this.toggleButtonState(buttonType);
         
         this.dispatchEvent(new CustomEvent('button-click', {
           detail: { 
             button,
             buttonType,
-            state: this.state
+            state: this.state,
+            buttonState: this.buttonStates[buttonType]
           },
           bubbles: true,
           composed: true,
@@ -168,6 +196,21 @@ class CallControlBar extends LitElement {
       });
     });
   }
+  toggleButtonState(buttonType) {
+    this.buttonStates = {
+      ...this.buttonStates,
+      [buttonType]: !this.buttonStates[buttonType]
+    };
+    this.requestUpdate();
+  }
+
+  getButtonIcon(type) {
+    if (this.buttonStates[type]) {
+      return this.activeicons[type] || type;
+    }
+    return this.inactiveicons[type] || type;
+  }
+
 }
 
 customElements.define('call-control-bar', CallControlBar);

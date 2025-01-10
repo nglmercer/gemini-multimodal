@@ -438,7 +438,7 @@ class LocalStorageManager {
 const audioPlayer = new AudioPlayer();
 async function setAudioData(data, mimeType) {
     audioPlayer.setAudioData(data, mimeType);
-    const visualizer = document.querySelector('audio-visualizer');
+    const visualizer = document.querySelector('audio-visualizer-2');
     if (!visualizer) {
       throw new Error('Audio visualizer element not found');
     }
