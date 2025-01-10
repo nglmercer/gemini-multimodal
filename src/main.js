@@ -3,11 +3,10 @@ import'./components/state.js';
 import './components/voicecomponent.js'
 import './components/audioviewer.js'
 import { EventEmitter } from "eventemitter3";
-import { difference } from "lodash";
+import { difference, set } from "lodash";
 import { blobToJSON, base64ToArrayBuffer,functions1 } from "./utils";
 import {AudioRecorder, useLiveAPI} from './media/audiorecorder.js';
-import { ScreenCapture } from './media/screencapture.js';
-import { WebcamCapture } from './media/videocapture,js';
+import { WebcamCapture, ScreenCapture,MediaFrameExtractor } from './media/videocapture.js';
 import { MultimodalLiveClient, MultimodalLiveAPI} from "./clientemit.js";
 import { SchemaType } from "@google/generative-ai";
 import { live } from 'lit/directives/live.js';
@@ -48,6 +47,12 @@ const liveAPIContext = {
     return this.liveAPI;
   }
 };
+document.querySelector('#app').innerHTML = `
+  <div class="container mx-auto py-8">
+  <audio-stream-player id="voiceplayer"></audio-stream-player>
+    <call-control-bar state="active"></call-control-bar>
+    </div>
+`;
 const audioRecorder = new AudioRecorder();
 audioRecorder.on("data", (data) => {
   onData(data);
@@ -79,25 +84,73 @@ function LiveAPIProvider({ url, apiKey, children }) {
   }
 }
 LiveAPIProvider({ url: uri, apiKey: API_KEY });
-document.querySelector('#app').innerHTML = `
-  <div class="container mx-auto py-8">
-  <audio-stream-player id="voiceplayer"></audio-stream-player>
-    <call-control-bar state="active"></call-control-bar>
-    </div>
-`;
+
 
 const callControlBar = document.querySelector('call-control-bar');
 callControlBar.addEventListener('button-click', (e) => {
   console.log('Button Clicked:', e.detail);
-  if (e.detail.buttonType === "mic" && e.detail.buttonState) {
-    audioRecorder.start();
-    onSubmit("eres un agente de chat, debes responder en español siempre");
-    console.log("audioRecorder.start()");
-  } else if (e.detail.buttonType === "mic" && !e.detail.buttonState) {
-    audioRecorder.stop();
-    console.log("audioRecorder.stop()");
-  }
+  handlemedia(e.detail.buttonType, e.detail.buttonState);
 });
+const screenCapture = new ScreenCapture();
+const webcam = new WebcamCapture();
+const frameExtractor = new MediaFrameExtractor({
+  fps: 1, // 1 frame per second
+  scale: 0.5, // 50% of original size
+  quality: 0.8 // 80% JPEG quality
+});
+function handlemedia(buttonType, buttonState) {
+  console.log("handlemedia", buttonType, buttonState);
+  switch (buttonType) {
+    case "mic":
+      if (buttonState) {
+        audioRecorder.start();
+        onSubmit("eres un agente de chat, debes responder en español siempre");
+        console.log("audioRecorder.start()");
+      } else {
+        audioRecorder.stop();
+        console.log("audioRecorder.stop()");
+      }
+    case "screen":
+      if (buttonState) {
+        screenCapture.start();
+        const video = document.getElementById("screen");
+        screenCapture.setVideoElement(video);
+
+
+      } else {
+        screenCapture.stop();
+      }
+      break;
+    case "video":
+      if (buttonState) {
+        webcam.start();
+        const video = document.getElementById("webcam");
+        webcam.setVideoElement(video);
+        frameExtractor.setMediaCapture(webcam);
+setTimeout(() => {
+  frameExtractor.start((frame) => {
+    console.log('Received frame:', frame);
+    // frame object contains:
+    // - data: base64 encoded JPEG
+    // - width: frame width
+    // - height: frame height
+    // - timestamp: when the frame was captured
+    // - sourceType: "webcam" or "screen"
+    
+    // Example: display the frame in an img element
+    const img = document.createElement('img');
+    img.src = `data:image/jpeg;base64,${frame.data}`;
+    document.body.appendChild(img);
+  });
+  }, 1000);
+      } else {
+        webcam.stop();
+      }
+      break;
+    default:
+      break;
+  }
+}
 const declaration = {
   name: "render_altair",
   description: "Displays an altair graph in json format.",
@@ -144,4 +197,13 @@ setTimeout(() => {
 
 /*   onSubmit("hola como estas, hablame en español, y dime la fecha actual en string y no en number");
  */}, 2222);
+ const unsubscribescreen = screenCapture.addEventListener((state) => {
+  console.log('Stream state changed:', state);
+  // Update your UI here
+});
+const unsubscribewebcam = webcam.addEventListener((state) => {
+  console.log('Webcam state changed:', state);
+  // Update your UI here
+}); 
+
 export { liveAPIContext };
