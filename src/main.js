@@ -21,19 +21,19 @@ if (typeof API_KEY !== "string") {  throw new Error("set REACT_APP_GEMINI_API_KE
 const liveAPI = new MultimodalLiveAPI({ url: uri, apiKey: API_KEY });
 
 liveAPI.client.on("toolcall", (toolCall) => {
-  console.log("toolcall", toolCall);
+  console.log("liveAPI.client.on", "toolcall", toolCall);
 });
 liveAPI.client.on("toolcallcancellation", (toolCallCancellation) => {
-  console.log("toolcallcancellation", toolCallCancellation);
+  console.log("liveAPI.client.on", "toolcallcancellation", toolCallCancellation);
 });
 liveAPI.client.on("setupcomplete", () => {
-  console.log("setupcomplete");
+  console.log("liveAPI.client.on", "setupcomplete");
 });
 liveAPI.client.on("interrupted", () => {
-  console.log("interrupted");
+  console.log("liveAPI.client.on", "interrupted");
 });
 liveAPI.client.on("turncomplete", () => {
-  console.log("turncomplete");
+  console.log("liveAPI.client.on", "turncomplete");
 });
 const liveAPIContext = {
   liveAPI: null,
@@ -55,16 +55,16 @@ document.querySelector('#app').innerHTML = `
 `;
 const audioRecorder = new AudioRecorder();
 audioRecorder.on("data", (data) => {
-  onData(data);
+  senddata("audio/pcm;rate=16000", data);
 });
-const onData = (base64) => {
-  client.client.sendRealtimeInput([
-    {
-      mimeType: "audio/pcm;rate=16000",
-      data: base64,
-    },
-  ]);
-};
+
+function senddata(type= "audio/pcm;rate=16000", data) {
+  const mapdata = {
+    "mimeType": type,
+    "data": data
+  };
+  client.client.sendRealtimeInput([mapdata]);
+}
 const onSubmit = (textInput = "texto de prueba",e) => {
   if (e) e.preventDefault();
   client.client.send([{ text: textInput }]);
@@ -93,7 +93,12 @@ callControlBar.addEventListener('button-click', (e) => {
 });
 const screenCapture = new ScreenCapture();
 const webcam = new WebcamCapture();
-const frameExtractor = new MediaFrameExtractor({
+const webcamimgextractor = new MediaFrameExtractor({
+  fps: 1, // 1 frame per second
+  scale: 0.5, // 50% of original size
+  quality: 0.8 // 80% JPEG quality
+});
+const screenimgextractor = new MediaFrameExtractor({
   fps: 1, // 1 frame per second
   scale: 0.5, // 50% of original size
   quality: 0.8 // 80% JPEG quality
@@ -104,19 +109,18 @@ function handlemedia(buttonType, buttonState) {
     case "mic":
       if (buttonState) {
         audioRecorder.start();
-        onSubmit("eres un agente de chat, debes responder en español siempre");
         console.log("audioRecorder.start()");
       } else {
         audioRecorder.stop();
         console.log("audioRecorder.stop()");
       }
+      break;
     case "screen":
       if (buttonState) {
         screenCapture.start();
         const video = document.getElementById("screen");
         screenCapture.setVideoElement(video);
-
-
+        getframesandsend("screen");
       } else {
         screenCapture.stop();
       }
@@ -126,23 +130,7 @@ function handlemedia(buttonType, buttonState) {
         webcam.start();
         const video = document.getElementById("webcam");
         webcam.setVideoElement(video);
-        frameExtractor.setMediaCapture(webcam);
-setTimeout(() => {
-  frameExtractor.start((frame) => {
-    console.log('Received frame:', frame);
-    // frame object contains:
-    // - data: base64 encoded JPEG
-    // - width: frame width
-    // - height: frame height
-    // - timestamp: when the frame was captured
-    // - sourceType: "webcam" or "screen"
-    
-    // Example: display the frame in an img element
-    const img = document.createElement('img');
-    img.src = `data:image/jpeg;base64,${frame.data}`;
-    document.body.appendChild(img);
-  });
-  }, 1000);
+        getframesandsend("webcam");
       } else {
         webcam.stop();
       }
@@ -151,6 +139,52 @@ setTimeout(() => {
       break;
   }
 }
+const mediaisActive = {
+  webcam: false,
+  screen: false,
+};
+
+async function getframesandsend(name) {
+  const element = {
+    webcam: webcamimgextractor,
+    screen: screenimgextractor,
+  };
+  const mediaelement = name === "webcam" ? webcam : screenCapture;
+  const frameExtractor = element[name];
+  if (!mediaisActive[name]) {
+    if (frameExtractor) {
+      try {
+        console.log("getframesandsend", name, mediaelement, frameExtractor);
+        // First, start the media capture and wait for it to initialize
+        await mediaelement.start();
+        
+        mediaisActive[name] = true;
+        frameExtractor.setMediaCapture(mediaelement);
+        
+        // Small delay to ensure stream is properly initialized
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        frameExtractor.start((frame) => {
+          console.log('Received frame:', frame);
+          const mapdata = {
+            "mimeType": frame.mimeType,
+            "data": frame.data
+          };
+          client.client.sendRealtimeInput([mapdata]);
+            
+        });
+      } catch (error) {
+        console.error(`Error initializing ${name} capture:`, error);
+        mediaisActive[name] = false;
+        
+        // Clean up if there's an error
+        mediaelement.stop();
+        frameExtractor.stop();
+      }
+    }
+  }
+}
+
 const declaration = {
   name: "render_altair",
   description: "Displays an altair graph in json format.",
@@ -168,10 +202,16 @@ const declaration = {
 };
 const config = {
   model: "models/gemini-2.0-flash-exp",
+  generationConfig: {
+  responseModalities: "audio",
+    speechConfig: {
+      voiceConfig: { prebuiltVoiceConfig: { voiceName: "Aoede" } },
+    },
+  },
   systemInstruction: {
     parts: [
       {
-        text: 'You are my helpful assistant. Any time I ask you for a graph call the "render_altair" function I have provided you. Dont ask for additional information just make your best judgement.',
+        text: 'tu eres un agente de chat, debes responder en español siempre',
       },
     ],
   },
@@ -186,7 +226,18 @@ const onToolCall = (toolCall) => {
       const str = (fc.args).json_graph;
       setJSONString(str);
   }
-  
+  if (toolCall.functionCalls.length) {
+  setTimeout(
+    () =>
+      client.sendToolResponse({
+        functionResponses: toolCall.functionCalls.map((fc) => ({
+          response: { output: { success: true } },
+          id: fc.id,
+        })),
+      }),
+    200,
+  );
+}
 };
 const client = liveAPIContext.getLiveAPI();
 console.log(client);

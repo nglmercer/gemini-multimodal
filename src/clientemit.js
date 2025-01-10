@@ -1,5 +1,6 @@
 import { EventEmitter } from "eventemitter3";
 import { blobToJSON, base64ToArrayBuffer, functions1 } from "./utils";
+import { set } from "lodash";
 
 const {
     ClientContentMessage,
@@ -25,6 +26,7 @@ class MultimodalLiveClient extends EventEmitter {
         this.connectionRetries = 0;
         this.maxRetries = 3;
         this.connected = false;
+        this.reconnectionTimeout = null; // Add this to track the timeout
 
         // Bind methods
         this.send = this.send.bind(this);
@@ -50,6 +52,7 @@ class MultimodalLiveClient extends EventEmitter {
         }
 
         this.isConnecting = true;
+        this.isConnected = true;
         if (config) this.config = config;
         console.log("config", this.config);
         try {
@@ -217,18 +220,32 @@ class MultimodalLiveClient extends EventEmitter {
             console.log("received unmatched message", response);
         }
     }
-
     sendRealtimeInput(chunks) {
-        if (!this.connected) {
+        if (!this.connected || this.isConnecting) {
             // Queue the message if not connected
             const data = {
                 realtimeInput: {
                     mediaChunks: chunks,
                 },
             };
+            console.log(this.isConnecting, this.connected);
             this.messageQueue.push(data);
+            
+            // Only set a reconnection timeout if one isn't already pending
+            if (!this.reconnectionTimeout) {
+                this.reconnectionTimeout = setTimeout(() => {
+                    this.connect(this.config)
+                        .catch(console.error)
+                        .finally(() => {
+                            // Clear the timeout reference after attempt
+                            this.reconnectionTimeout = null;
+                        });
+                }, 1000);
+            }
             return;
         }
+
+        console.log("sendRealtimeInput", chunks);
 
         let hasAudio = false;
         let hasVideo = false;
@@ -249,6 +266,15 @@ class MultimodalLiveClient extends EventEmitter {
         };
         this._sendDirect(data);
         this.log(`client.realtimeInput`, message);
+    }
+
+    // Add cleanup method to clear timeout if needed
+    cleanup() {
+        if (this.reconnectionTimeout) {
+            clearTimeout(this.reconnectionTimeout);
+            this.reconnectionTimeout = null;
+        }
+        this.disconnect(this.ws);
     }
 
     sendToolResponse(toolResponse) {

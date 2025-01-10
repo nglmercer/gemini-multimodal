@@ -269,11 +269,12 @@ class LocalStorageManager {
   }
   const functions1 = {
     
-    ClientContentMessage,
+    isClientContentMessage,
     isInterrupted,
     isModelTurn,
     isServerContentMessage,
     isSetupCompleteMessage,
+    isToolCall,
     isToolCallCancellationMessage,
     isToolCallMessage,
     isTurnComplete,
@@ -287,14 +288,7 @@ class LocalStorageManager {
     ToolCallCancellation,
     ToolResponseMessage, */
   }
-  function ClientContentMessage(data) {
-    console.log("ClientContentMessage", data);
-    return data;
-  }
-  function isInterrupted(data) {
-    console.log("isInterrupted", data);
-    return data.interrupted;
-  }
+
   function isModelTurn(data) {
     const  serverContent  = data;
 
@@ -340,25 +334,100 @@ class LocalStorageManager {
 
   }
 
-  function isServerContentMessage(data) {
-    console.log("isServerContentMessage", data);
-    return data.serverContent;
+  function hasProperty(obj, prop, kind = "object") {
+    return obj != null && typeof obj === "object" && typeof obj[prop] === kind;
   }
-  function isSetupCompleteMessage(data) {
-    console.log("isSetupCompleteMessage", data);
-    return data.setupComplete;
+  
+  // Verificaciones para mensajes salientes
+  function isSetupMessage(a) {
+    return hasProperty(a, "setup");
   }
-  function isToolCallCancellationMessage(data) {
-    console.log("isToolCallCancellationMessage", data);
-    return data.toolCallCancellation;
+  
+  function isClientContentMessage(a) {
+    return hasProperty(a, "clientContent");
   }
-  function isToolCallMessage(data) {
-    console.log("isToolCallMessage", data);
-    return data.toolCall;
+  
+  function isRealtimeInputMessage(a) {
+    return hasProperty(a, "realtimeInput");
   }
-  function isTurnComplete(data) {
-    console.log("isTurnComplete", data);
-    return data.turnComplete;
+  
+  function isToolResponseMessage(a) {
+    return hasProperty(a, "toolResponse");
+  }
+  
+  // Verificaciones para mensajes entrantes
+  function isSetupCompleteMessage(a) {
+    return hasProperty(a, "setupComplete");
+  }
+  
+  function isServerContentMessage(a) {
+    return hasProperty(a, "serverContent");
+  }
+  
+  function isToolCallMessage(a) {
+    return hasProperty(a, "toolCall");
+  }
+  
+  function isToolCallCancellationMessage(a) {
+    return (
+      hasProperty(a, "toolCallCancellation") &&
+      isToolCallCancellation(a.toolCallCancellation)
+    );
+  }
+  
+
+  function isTurnComplete(a) {
+    return typeof a === "object" && typeof a.turnComplete === "boolean";
+  }
+  
+  function isInterrupted(a) {
+    return typeof a === "object" && a.interrupted === true;
+  }
+  
+  function isToolCall(value) {
+    if (!value || typeof value !== "object") return false;
+  
+    const candidate = value;
+    return (
+      Array.isArray(candidate.functionCalls) &&
+      candidate.functionCalls.every(isLiveFunctionCall)
+    );
+  }
+  
+  function isToolResponse(value) {
+    if (!value || typeof value !== "object") return false;
+  
+    const candidate = value;
+    return (
+      Array.isArray(candidate.functionResponses) &&
+      candidate.functionResponses.every(isLiveFunctionResponse)
+    );
+  }
+  
+  function isLiveFunctionCall(value) {
+    if (!value || typeof value !== "object") return false;
+  
+    const candidate = value;
+    return (
+      typeof candidate.name === "string" &&
+      typeof candidate.id === "string" &&
+      typeof candidate.args === "object" &&
+      candidate.args !== null
+    );
+  }
+  
+  function isLiveFunctionResponse(value) {
+    if (!value || typeof value !== "object") return false;
+  
+    const candidate = value;
+    return (
+      typeof candidate.response === "object" &&
+      typeof candidate.id === "string"
+    );
+  }
+  
+  function isToolCallCancellation(a) {
+    return typeof a === "object" && Array.isArray(a.ids);
   }
   class AudioPlayer {
     constructor() {
