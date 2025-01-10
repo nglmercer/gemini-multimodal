@@ -170,7 +170,7 @@ async function getframesandsend(name) {
             "mimeType": frame.mimeType,
             "data": frame.data
           };
-          client.client.sendRealtimeInput([mapdata]);
+ //       client.client.sendRealtimeInput([mapdata]);
             
         });
       } catch (error) {
