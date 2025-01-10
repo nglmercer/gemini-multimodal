@@ -14,32 +14,6 @@ import { MultimodalLiveClient } from "./clientemit.js";
 import { SchemaType } from "@google/generative-ai";
 import { live } from 'lit/directives/live.js';
 
-const audioRecorder = new AudioRecorder();
-audioRecorder.start();
-audioRecorder.on("data", (data) => {
-  onData(data);
-});
-const onData = (base64) => {
-  client.client.sendRealtimeInput([
-    {
-      mimeType: "audio/pcm;rate=16000",
-      data: base64,
-    },
-  ]);
-};
-const onSubmit = (textInput = "texto de prueba",e) => {
-  if (e) e.preventDefault();
-  client.client.send([{ text: textInput }]);
-};
-const {
-  ClientContentMessage,
-  isInterrupted,
-  isModelTurn,
-  isServerContentMessage,
-  isSetupCompleteMessage,
-  isToolCallCancellationMessage,
-  isToolCallMessage,
-  isTurnComplete} = functions1;
 const host = "generativelanguage.googleapis.com";
 const uri = `wss://${host}/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent`;
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
@@ -160,6 +134,23 @@ const liveAPIContext = {
     return this.liveAPI;
   }
 };
+const audioRecorder = new AudioRecorder();
+audioRecorder.on("data", (data) => {
+  onData(data);
+});
+const onData = (base64) => {
+  client.client.sendRealtimeInput([
+    {
+      mimeType: "audio/pcm;rate=16000",
+      data: base64,
+    },
+  ]);
+};
+const onSubmit = (textInput = "texto de prueba",e) => {
+  if (e) e.preventDefault();
+  client.client.send([{ text: textInput }]);
+};
+
 
 function LiveAPIProvider({ url, apiKey, children }) {
   const liveAPI = useLiveAPI({ url, apiKey });
@@ -180,13 +171,17 @@ document.querySelector('#app').innerHTML = `
     <call-control-bar state="active"></call-control-bar>
     </div>
 `;
-/// test section
+
 const callControlBar = document.querySelector('call-control-bar');
 callControlBar.addEventListener('button-click', (e) => {
   console.log('Button Clicked:', e.detail);
-  if (e.detail.buttonType === "mic") {
-/*     audioRecorder.start();
- */    console.log("audioRecorder.start()");
+  if (e.detail.buttonType === "mic" && e.detail.buttonState) {
+    audioRecorder.start();
+    onSubmit("eres un agente de chat, debes responder en español siempre");
+    console.log("audioRecorder.start()");
+  } else if (e.detail.buttonType === "mic" && !e.detail.buttonState) {
+    audioRecorder.stop();
+    console.log("audioRecorder.stop()");
   }
 });
 const declaration = {
@@ -232,6 +227,7 @@ client.client.setConfig(config);
 client.client.on("toolcall", onToolCall);
 setTimeout(() => {
   liveAPI.connect();
+
 /*   onSubmit("hola como estas, hablame en español, y dime la fecha actual en string y no en number");
  */}, 2222);
 export { liveAPIContext };

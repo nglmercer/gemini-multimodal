@@ -9,7 +9,8 @@ class CallControlBar extends LitElement {
 
     .control-tray {
       display: flex;
-      flex-direction: column;
+      flex-direction: row;
+      justify-content: center;
       align-items: center;
       background-color: #2c2c2c;
       padding: 10px;
@@ -75,7 +76,8 @@ class CallControlBar extends LitElement {
     .connection-container {
       display: flex;
       align-items: center;
-      margin-top: 10px;
+      margin: 1rem;
+      
     }
 
     .text-indicator {
@@ -102,14 +104,14 @@ class CallControlBar extends LitElement {
     };
     this.activeicons = {
       "mic": "mic_off",
-      "video": "Videocam",
+      "video": "cancel_presentation",
       "cancelvideo": "cancel_presentation",
       "pause": "play_arrow",
       "connect": "play_arrow"
     }
     this.inactiveicons = {
       "mic": "mic",
-      "video": "cancel_presentation",
+      "video": "videocam",
       "pause": "pause",
       "cancelvideo": "cancel_presentation",
       "connect": "pause"
@@ -144,7 +146,6 @@ class CallControlBar extends LitElement {
         <nav class="actions-nav ${this.state === 'inactive' ? 'disabled' : ''}">
           ${this.getbutton("mic")}
           ${this.getbutton("video")}
-          ${this.getbutton("cancelvideo")}
           <div class="action-button no-action outlined">
             <div class="audioPulse">
               <div style="animation-delay: 0ms; height: 4px;"></div>
