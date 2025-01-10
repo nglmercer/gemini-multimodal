@@ -115,16 +115,17 @@ function arrayBufferToBase64(buffer) {
 }
 
 class AudioRecorder extends EventEmitter {
-  constructor(sampleRate = 16000) {
+  constructor(targetSampleRate = 16000) {
       super();
       this.stream = null;
-      this.audioContext = null;  // Changed from audiocontext
+      this.audioContext = null;
       this.source = null;
       this.recording = false;
       this.recordingWorklet = null;
       this.vuWorklet = null;
       this.starting = false;
-      this.sampleRate = sampleRate;
+      this.targetSampleRate = targetSampleRate;
+      this.resamplingEnabled = true;
   }
 
   async start() {
@@ -134,43 +135,94 @@ class AudioRecorder extends EventEmitter {
 
       this.starting = new Promise(async (resolve, reject) => {
           try {
-              // First get the stream
-              this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-              
-              // Create audio context with the desired sample rate
-              this.audioContext = new (window.AudioContext || window.webkitAudioContext)({
+              // Get the audio stream
+              this.stream = await navigator.mediaDevices.getUserMedia({ 
+                  audio: true
               });
 
-              // Create the source with the same audio context
+              // Create audio context with default sample rate
+              this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+              console.log(`Browser's sample rate: ${this.audioContext.sampleRate}`);
+
+              // Create the source
               this.source = this.audioContext.createMediaStreamSource(this.stream);
 
-              const workletName = "audio-recorder-worklet";
-              const src = createWorketFromSrc(workletName, AudioRecordingWorklet);
+              // Add resampling if needed
+              if (this.resamplingEnabled && this.audioContext.sampleRate !== this.targetSampleRate) {
+                  const offlineCtx = new OfflineAudioContext(
+                      1, // mono
+                      this.audioContext.sampleRate, 
+                      this.audioContext.sampleRate
+                  );
 
-              await this.audioContext.audioWorklet.addModule(src);
-              this.recordingWorklet = new AudioWorkletNode(
-                  this.audioContext,
-                  workletName,
-              );
+                  // Create a script processor for resampling
+                  const bufferSize = 4096;
+                  const scriptNode = this.audioContext.createScriptProcessor(
+                      bufferSize,
+                      1, // input channels
+                      1  // output channels
+                  );
 
-              this.recordingWorklet.port.onmessage = async (ev) => {
-                  const arrayBuffer = ev.data.data.int16arrayBuffer;
-                  if (arrayBuffer) {
-                      const arrayBufferString = arrayBufferToBase64(arrayBuffer);
-                      this.emit("data", arrayBufferString);
-                  }
-              };
-              this.source.connect(this.recordingWorklet);
+                  scriptNode.onaudioprocess = (audioProcessingEvent) => {
+                      const inputBuffer = audioProcessingEvent.inputBuffer;
+                      const inputData = inputBuffer.getChannelData(0);
+                      
+                      // Resample the audio
+                      const resampledBuffer = this.resampleAudio(
+                          inputData,
+                          this.audioContext.sampleRate,
+                          this.targetSampleRate
+                      );
 
-              // vu meter worklet
+                      // Convert to Int16Array
+                      const int16Data = new Int16Array(resampledBuffer.length);
+                      for (let i = 0; i < resampledBuffer.length; i++) {
+                          int16Data[i] = Math.max(-32768, Math.min(32767, Math.round(resampledBuffer[i] * 32767)));
+                      }
+
+                      // Emit the resampled data
+                      if (this.recording) {
+                          const arrayBufferString = this.arrayBufferToBase64(int16Data.buffer);
+                          this.emit("data", arrayBufferString);
+                      }
+                  };
+
+                  // Connect the nodes
+                  this.source.connect(scriptNode);
+                  scriptNode.connect(this.audioContext.destination);
+              } else {
+                  // If no resampling needed, proceed with original worklet setup
+                  const workletName = "audio-recorder-worklet";
+                  const src = createWorketFromSrc(workletName, AudioRecordingWorklet);
+                  await this.audioContext.audioWorklet.addModule(src);
+                  
+                  this.recordingWorklet = new AudioWorkletNode(
+                      this.audioContext,
+                      workletName,
+                  );
+
+                  this.recordingWorklet.port.onmessage = async (ev) => {
+                      const arrayBuffer = ev.data.data.int16arrayBuffer;
+                      if (arrayBuffer) {
+                          const arrayBufferString = this.arrayBufferToBase64(arrayBuffer);
+                          this.emit("data", arrayBufferString);
+                      }
+                  };
+
+                  this.source.connect(this.recordingWorklet);
+              }
+
+              // Setup VU meter
               const vuWorkletName = "vu-meter";
               await this.audioContext.audioWorklet.addModule(
                   createWorketFromSrc(vuWorkletName, VolMeterWorket),
               );
+              
               this.vuWorklet = new AudioWorkletNode(this.audioContext, vuWorkletName);
               this.vuWorklet.port.onmessage = (ev) => {
                   this.emit("volume", ev.data.volume);
               };
+              
               this.source.connect(this.vuWorklet);
               this.recording = true;
               resolve();
@@ -179,8 +231,38 @@ class AudioRecorder extends EventEmitter {
           }
           this.starting = null;
       });
-
+      
       return this.starting;
+  }
+
+  resampleAudio(audioData, fromSampleRate, toSampleRate) {
+      const ratio = fromSampleRate / toSampleRate;
+      const newLength = Math.round(audioData.length / ratio);
+      const result = new Float32Array(newLength);
+      
+      for (let i = 0; i < newLength; i++) {
+          const position = i * ratio;
+          const index = Math.floor(position);
+          const fraction = position - index;
+          
+          if (index + 1 < audioData.length) {
+              result[i] = audioData[index] * (1 - fraction) + audioData[index + 1] * fraction;
+          } else {
+              result[i] = audioData[index];
+          }
+      }
+      
+      return result;
+  }
+
+  arrayBufferToBase64(buffer) {
+      const bytes = new Uint8Array(buffer);
+      const len = bytes.byteLength;
+      let binary = '';
+      for (let i = 0; i < len; i++) {
+          binary += String.fromCharCode(bytes[i]);
+      }
+      return window.btoa(binary);
   }
 
   stop() {
@@ -198,6 +280,7 @@ class AudioRecorder extends EventEmitter {
           this.recordingWorklet = undefined;
           this.vuWorklet = undefined;
           this.audioContext = undefined;
+          this.recording = false;
       };
 
       if (this.starting) {
