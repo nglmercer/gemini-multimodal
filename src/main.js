@@ -218,7 +218,13 @@ const config = {
       },
     ],
   },
-  tools: [{ googleSearch: {} }, { functionDeclarations: [declaration] }],
+  tools: [{ googleSearch: {
+/*     googleApplicationCredentials: process.env.GOOGLE_APPLICATION_CREDENTIALS,
+    apiKey: process.env.GOOGLE_API_KEY,
+    location: "us-central1",
+    engine: "custom_search_engine",
+    customSearchEngineId: "0123456789", */
+  } }, { functionDeclarations: [declaration] }],
 }
 const onToolCall = (toolCall) => {
   console.log(`got toolcall`, toolCall);

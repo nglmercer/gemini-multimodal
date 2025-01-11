@@ -27,12 +27,16 @@ class MultimodalLiveClient extends EventEmitter {
         this.maxRetries = 3;
         this.connected = false;
         this.reconnectionTimeout = null; // Add this to track the timeout
+        this.contextQueue = []; // Queue to store context messages
 
         // Bind methods
         this.send = this.send.bind(this);
         this.connect = this.connect.bind(this);
         this._sendDirect = this._sendDirect.bind(this);
         this.handleConnectionError = this.handleConnectionError.bind(this);
+        this.addToContext = this.addToContext.bind(this);
+        this.sendWithContext = this.sendWithContext.bind(this);
+
     }
 
     log(type, message) {
@@ -283,6 +287,34 @@ class MultimodalLiveClient extends EventEmitter {
         this._sendDirect(message);
         this.log(`client.toolResponse`, message);
     }
+    addToContext(parts) {
+        parts = Array.isArray(parts) ? parts : [parts];
+        const content = {
+          role: "user",
+          parts,
+        };
+        this.contextQueue.push(content);
+      }
+    
+    sendWithContext(parts, turnComplete = true) {
+        parts = Array.isArray(parts) ? parts : [parts];
+        const content = {
+            role: "user",
+            parts,
+        };
+        
+        const turnsWithContext = [...this.contextQueue, content];
+        
+          const clientContentRequest = {
+            clientContent: {
+              turns: turnsWithContext,
+              turnComplete,
+            },
+          };
+    
+        this._sendDirect(clientContentRequest);
+        this.log(`client.send`, clientContentRequest);
+      }
 
     send(parts, turnComplete = true) {
         parts = Array.isArray(parts) ? parts : [parts];
