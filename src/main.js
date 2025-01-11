@@ -91,6 +91,10 @@ callControlBar.addEventListener('button-click', (e) => {
   console.log('Button Clicked:', e.detail);
   handlemedia(e.detail.buttonType, e.detail.buttonState);
 });
+const mediaisActive = {
+  webcam: false,
+  screen: false,
+};
 const screenCapture = new ScreenCapture();
 const webcam = new WebcamCapture();
 const webcamimgextractor = new MediaFrameExtractor({
@@ -123,6 +127,7 @@ function handlemedia(buttonType, buttonState) {
         getframesandsend("screen");
       } else {
         screenCapture.stop();
+        mediaisActive.screen = false;
       }
       break;
     case "video":
@@ -133,16 +138,14 @@ function handlemedia(buttonType, buttonState) {
         getframesandsend("webcam");
       } else {
         webcam.stop();
+        mediaisActive.webcam = false;
       }
       break;
     default:
       break;
   }
 }
-const mediaisActive = {
-  webcam: false,
-  screen: false,
-};
+
 
 async function getframesandsend(name) {
   const element = {
