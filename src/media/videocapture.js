@@ -151,7 +151,8 @@ class ScreenCapture {
   async start() {
     try {
       const mediaStream = await navigator.mediaDevices.getDisplayMedia({
-        video: true
+        video: true,
+        audio: true
       });
       this.stream = mediaStream;
       this.isStreaming = true;
@@ -318,6 +319,134 @@ class MediaFrameExtractor {
     };
   }
 }
+class AudioCapture {
+  constructor() {
+    this.stream = null;
+    this.isStreaming = false;
+    this.type = "audio";
+    this.eventListeners = new Set();
+    this.audioContext = null;
+    this.sourceNode = null;
+    this.scriptProcessor = null;
+    this.sendDataCallback = null; // Callback para enviar datos
+  }
+
+  handleStreamEnded = () => {
+    this.isStreaming = false;
+    this.stream = null;
+    this.cleanupAudioContext();
+    this.notifyListeners();
+  };
+
+  addEventListener(callback) {
+    this.eventListeners.add(callback);
+    return () => this.eventListeners.delete(callback);
+  }
+
+  notifyListeners() {
+    const state = {
+      stream: this.stream,
+      isStreaming: this.isStreaming,
+      type: this.type,
+    };
+    this.eventListeners.forEach((callback) => callback(state));
+  }
+
+  async start(sendDataCallback) {
+    try {
+      const mediaStream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+      });
+      this.stream = mediaStream;
+      this.isStreaming = true;
+
+      // Initialize Web Audio API
+      this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      this.sourceNode = this.audioContext.createMediaStreamSource(this.stream);
+      this.scriptProcessor = this.audioContext.createScriptProcessor(4096, 1, 1);
+      this.sendDataCallback = sendDataCallback;
+
+      // Connect the nodes
+      this.sourceNode.connect(this.scriptProcessor);
+      this.scriptProcessor.connect(this.audioContext.destination);
+
+      // Process audio data in PCM format
+      this.scriptProcessor.onaudioprocess = (audioEvent) => {
+        if (!this.isStreaming || !this.sendDataCallback) return;
+
+        // Get the raw audio data
+        const inputBuffer = audioEvent.inputBuffer.getChannelData(0);
+
+        // Convert to PCM and encode as Base64
+        const base64PCMData = this.convertFloat32ToBase64PCM(inputBuffer);
+
+        // Send the encoded PCM data using the provided callback
+        this.sendDataCallback("audio/pcm;rate=16000", base64PCMData);
+      };
+
+      // Add ended event listeners to all tracks
+      this.stream.getTracks().forEach((track) => {
+        track.addEventListener("ended", this.handleStreamEnded);
+      });
+
+      this.notifyListeners();
+      return mediaStream;
+    } catch (error) {
+      console.error("Error starting audio capture:", error);
+      throw error;
+    }
+  }
+
+  stop() {
+    if (this.stream) {
+      this.stream.getTracks().forEach((track) => {
+        track.removeEventListener("ended", this.handleStreamEnded);
+        track.stop();
+      });
+      this.cleanupAudioContext();
+      this.stream = null;
+      this.isStreaming = false;
+      this.notifyListeners();
+    }
+  }
+
+  cleanupAudioContext() {
+    if (this.audioContext) {
+      this.audioContext.close().catch((err) => console.error("Error closing audio context:", err));
+      this.audioContext = null;
+      this.sourceNode = null;
+      this.scriptProcessor = null;
+    }
+  }
+
+  convertFloat32ToBase64PCM(float32Array) {
+    // Downsample to 16 kHz and convert to 16-bit PCM
+    const sampleRate = this.audioContext.sampleRate;
+    const targetRate = 16000;
+    const ratio = sampleRate / targetRate;
+    const length = Math.floor(float32Array.length / ratio);
+    const pcmArray = new Int16Array(length);
+
+    for (let i = 0; i < length; i++) {
+      const index = Math.floor(i * ratio);
+      const sample = Math.max(-1, Math.min(1, float32Array[index])); // Clamp values between -1 and 1
+      pcmArray[i] = sample < 0 ? sample * 0x8000 : sample * 0x7fff; // Convert to 16-bit PCM
+    }
+
+    // Convert PCM data to Base64
+    const binaryString = String.fromCharCode(...new Uint8Array(pcmArray.buffer));
+    return btoa(binaryString); // Base64 encode
+  }
+
+  getState() {
+    return {
+      type: this.type,
+      isStreaming: this.isStreaming,
+      stream: this.stream,
+    };
+  }
+}
+
 /* const screenCapture = new ScreenCapture();
 
 // Add state change listener
@@ -338,7 +467,7 @@ screenCapture.stop();
 
 // Remove listener when done
 unsubscribe(); */
-export { ScreenCapture, WebcamCapture, MediaFrameExtractor };
+export { ScreenCapture, WebcamCapture, MediaFrameExtractor, AudioCapture };
 // Create an instance
 /* const webcam = new WebcamCapture();
 

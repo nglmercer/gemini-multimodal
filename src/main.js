@@ -6,7 +6,7 @@ import { EventEmitter } from "eventemitter3";
 import { difference, set } from "lodash";
 import { blobToJSON, base64ToArrayBuffer,functions1 } from "./utils";
 import {AudioRecorder, useLiveAPI} from './media/audiorecorder.js';
-import { WebcamCapture, ScreenCapture,MediaFrameExtractor } from './media/videocapture.js';
+import { WebcamCapture, ScreenCapture,MediaFrameExtractor, AudioCapture } from './media/videocapture.js';
 import { MultimodalLiveClient, MultimodalLiveAPI} from "./clientemit.js";
 import { SchemaType } from "@google/generative-ai";
 import { live } from 'lit/directives/live.js';
@@ -107,6 +107,10 @@ const screenimgextractor = new MediaFrameExtractor({
   scale: 0.5, // 50% of original size
   quality: 0.8 // 80% JPEG quality
 });
+const audioCapture  = new AudioCapture();
+audioCapture.addEventListener((state) => {
+  console.log("Estado del audio:", state);
+});
 function handlemedia(buttonType, buttonState) {
   console.log("handlemedia", buttonType, buttonState);
   switch (buttonType) {
@@ -176,6 +180,9 @@ async function getframesandsend(name) {
           client.client.sendRealtimeInput([mapdata]);
             
         });
+        await audioCapture.start((type, pcmData) => {
+          senddata(type, pcmData);
+        });
       } catch (error) {
         console.error(`Error initializing ${name} capture:`, error);
         mediaisActive[name] = false;
@@ -183,6 +190,8 @@ async function getframesandsend(name) {
         // Clean up if there's an error
         mediaelement.stop();
         frameExtractor.stop();
+        audioCapture.stopAudioDataExtraction();
+        audioCapture.stop();
       }
     }
   }
@@ -214,7 +223,7 @@ const config = {
   systemInstruction: {
     parts: [
       {
-        text: 'tu eres un agente de chat, debes responder en español siempre',
+        text: "Recuerda siempre responder en español, Eres un amigo virtual que participa en streams o chats para conversar y complementar información. Tu rol es ser amigable, informal y útil, pero siempre responde de manera corta y concisa (lo mas corto posible). Mantén un tono casual y cercano, como si fueras un amigo real, pero evita extenderte demasiado. Si no sabes algo, admítelo de forma breve y ofrece deducciones o hipotesis ya sea del tema o de ceomo encontrarlo. ¡Diviértete y sé un buen compañero de conversación!",
       },
     ],
   },
