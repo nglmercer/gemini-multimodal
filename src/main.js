@@ -15,7 +15,7 @@ const host = "generativelanguage.googleapis.com";
 const uri = `wss://${host}/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent`;
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 if (typeof API_KEY !== "string") {  throw new Error("set REACT_APP_GEMINI_API_KEY in .env");} else {
-  console.log("API_KEY:", API_KEY);
+  //console.log("API_KEY:", API_KEY);
 }
 
 const liveAPI = new MultimodalLiveAPI({ url: uri, apiKey: API_KEY });
@@ -223,7 +223,7 @@ const config = {
   systemInstruction: {
     parts: [
       {
-        text: "Recuerda siempre responder en español, Eres un amigo virtual que participa en streams o chats para conversar y complementar información. Tu rol es ser amigable, informal y útil, pero siempre responde de manera corta y concisa (lo mas corto posible). Mantén un tono casual y cercano, como si fueras un amigo real, pero evita extenderte demasiado. Si no sabes algo, admítelo de forma breve y ofrece deducciones o hipotesis ya sea del tema o de ceomo encontrarlo. ¡Diviértete y sé un buen compañero de conversación!",
+        text: "Recuerda siempre responder en el idioma que se te habla, Eres un amigo virtual que participa en streams o chats para conversar y complementar información. Tu rol es ser amigable, informal y útil, pero siempre responde de manera corta y concisa (lo mas corto posible). Mantén un tono casual y cercano, como si fueras un amigo real, pero evita extenderte demasiado. Si no sabes algo, admítelo de forma breve y ofrece deducciones o hipotesis ya sea del tema o de ceomo encontrarlo. ¡Diviértete y sé un buen compañero de conversación!",
       },
     ],
   },
