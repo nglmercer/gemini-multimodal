@@ -77,35 +77,87 @@ const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 if (typeof API_KEY !== "string") {  throw new Error("set REACT_APP_GEMINI_API_KEY in .env");} else {
   console.log("API_KEY:", API_KEY);
 }
-const liveAPI = new MultimodalLiveAPI({ url: uri, apiKey: API_KEY });
-
-liveAPI.client.on("toolcall", (toolCall) => {
-  console.log("liveAPI.client.on", "toolcall", toolCall);
-});
-liveAPI.client.on("toolcallcancellation", (toolCallCancellation) => {
-  console.log("liveAPI.client.on", "toolcallcancellation", toolCallCancellation);
-});
-liveAPI.client.on("setupcomplete", () => {
-  console.log("liveAPI.client.on", "setupcomplete");
-});
-liveAPI.client.on("interrupted", () => {
-  console.log("liveAPI.client.on", "interrupted");
-});
-liveAPI.client.on("turncomplete", () => {
-  console.log("liveAPI.client.on", "turncomplete");
-});
-const liveAPIContext = {
-  liveAPI: null,
-  setLiveAPI(liveAPI) {
-    this.liveAPI = liveAPI;
+const declaration = {
+  name: "render_altair",
+  description: "Displays an altair graph in json format.",
+  parameters: {
+    type: SchemaType.OBJECT,
+    properties: {
+      json_graph: {
+        type: SchemaType.STRING,
+        description:
+          "JSON STRING representation of the graph to render. Must be a string, not a json object",
+      },
+    },
+    required: ["json_graph"],
   },
-  getLiveAPI() {
-    if (!this.liveAPI) {
-      throw new Error("useLiveAPI must be used within a LiveAPIProvider");
+};
+const config = {
+  model: "models/gemini-2.0-flash-exp",
+  generationConfig: {
+  responseModalities: "audio",
+    speechConfig: {
+      voiceConfig: { prebuiltVoiceConfig: { voiceName: "Aoede" } },
+    },
+  },
+  systemInstruction: {
+    parts: [
+      {
+        text: 'tu eres un agente de chat, debes responder en español siempre',
+      },
+    ],
+  },
+  tools: [{ googleSearch: {
+/*     googleApplicationCredentials: process.env.GOOGLE_APPLICATION_CREDENTIALS,
+    apiKey: process.env.GOOGLE_API_KEY,
+    location: "us-central1",
+    engine: "custom_search_engine",
+    customSearchEngineId: "0123456789", */
+  } }, { functionDeclarations: [declaration] }],
+}
+const LiveAPIContext = {
+  instance: null,
+  config: config,
+  initialize({ url, apiKey }) {
+    if (!this.instance) {
+      this.instance = new MultimodalLiveAPI({ url, apiKey });
+      this.instance.setConfig(this.config);
+      this.setupEventListeners();
     }
-    return this.liveAPI;
+    return this.instance;
+  },
+
+  setupEventListeners() {
+    this.instance.client
+      .on("toolcall", this.handleToolCall)
+      .on("toolcallcancellation", console.log)
+      .on("setupcomplete", () => console.log("Setup complete"))
+      .on("interrupted", () => console.log("Interrupted"))
+      .on("turncomplete", () => console.log("Turn complete"));
+  },
+
+  handleToolCall(toolCall) {
+    const declaration = LiveAPIContext.config.tools[1].functionDeclarations[0];
+    const fc = toolCall.functionCalls.find(fc => fc.name === declaration.name);
+    
+    if (fc) {
+      const str = fc.args.json_graph;
+      setJSONString(str);
+    }
+
+    if (toolCall.functionCalls.length) {
+      setTimeout(() => {
+        this.sendToolResponse({
+          functionResponses: toolCall.functionCalls.map(fc => ({
+            response: { output: { success: true } },
+            id: fc.id
+          }))
+        });
+      }, 200);
+    }
   }
 };
+
 document.querySelector('#app').innerHTML = `
   <div class="container mx-auto py-8">
   <audio-stream-player id="voiceplayer"></audio-stream-player>
@@ -122,27 +174,15 @@ function senddata(type= "audio/pcm;rate=16000", data) {
     "mimeType": type,
     "data": data
   };
-  liveapicontext.client.sendRealtimeInput([mapdata]);
+  liveAPI.client.sendRealtimeInput([mapdata]);
 }
 const onSubmit = (textInput = "texto de prueba",e) => {
   if (e) e.preventDefault();
-  liveapicontext.client.send([{ text: textInput }]);
+  liveAPI.client.send([{ text: textInput }]);
 };
 
 
-function LiveAPIProvider({ url, apiKey, children }) {
-  const liveAPI = useLiveAPI({ url, apiKey });
-  liveAPIContext.setLiveAPI(liveAPI);
-
-  if (typeof children === "function") {
-    children();
-  } else if (Array.isArray(children)) {
-    children.forEach((child) => {
-      if (typeof child === "function") child();
-    });
-  }
-}
-LiveAPIProvider({ url: uri, apiKey: API_KEY });
+const liveAPI = LiveAPIContext.initialize({ url: uri, apiKey: API_KEY });
 
 
 const callControlBar = document.querySelector('call-control-bar');
@@ -247,44 +287,7 @@ async function getframesandsend(name) {
   }
 }
 
-const declaration = {
-  name: "render_altair",
-  description: "Displays an altair graph in json format.",
-  parameters: {
-    type: SchemaType.OBJECT,
-    properties: {
-      json_graph: {
-        type: SchemaType.STRING,
-        description:
-          "JSON STRING representation of the graph to render. Must be a string, not a json object",
-      },
-    },
-    required: ["json_graph"],
-  },
-};
-const config = {
-  model: "models/gemini-2.0-flash-exp",
-  generationConfig: {
-  responseModalities: "audio",
-    speechConfig: {
-      voiceConfig: { prebuiltVoiceConfig: { voiceName: "Aoede" } },
-    },
-  },
-  systemInstruction: {
-    parts: [
-      {
-        text: 'tu eres un agente de chat, debes responder en español siempre',
-      },
-    ],
-  },
-  tools: [{ googleSearch: {
-/*     googleApplicationCredentials: process.env.GOOGLE_APPLICATION_CREDENTIALS,
-    apiKey: process.env.GOOGLE_API_KEY,
-    location: "us-central1",
-    engine: "custom_search_engine",
-    customSearchEngineId: "0123456789", */
-  } }, { functionDeclarations: [declaration] }],
-}
+
 const onToolCall = (toolCall) => {
   console.log(`got toolcall`, toolCall);
   const fc = toolCall.functionCalls.find(
@@ -307,15 +310,14 @@ const onToolCall = (toolCall) => {
   );
 }
 };
-const liveapicontext = liveAPIContext.getLiveAPI();
-console.log(liveapicontext);
-liveapicontext.client.setConfig(config);
-liveapicontext.client.on("toolcall", onToolCall);
+console.log(liveAPI);
+liveAPI.client.setConfig(config);
+liveAPI.client.on("toolcall", onToolCall);
 setTimeout(() => {
   liveAPI.connect();
 
 /*   onSubmit("hola como estas, hablame en español, y dime la fecha actual en string y no en number");
- */}, 2222);
+ */}, 1111);
  const unsubscribescreen = screenCapture.addEventListener((state) => {
   console.log('Stream state changed:', state);
   // Update your UI here

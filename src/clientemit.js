@@ -426,6 +426,7 @@ class MultimodalLiveAPI {
     }
   
     setConfig(config) {
+        console.log("setConfig", config);
       this.config = config;
     }
   
