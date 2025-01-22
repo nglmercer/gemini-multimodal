@@ -9,68 +9,6 @@ import {AudioRecorder} from './media/audiorecorder.js';
 import { WebcamCapture, ScreenCapture,MediaFrameExtractor } from './media/videocapture.js';
 import { MultimodalLiveClient, MultimodalLiveAPI} from "./clientemit.js";
 import { SchemaType } from "@google/generative-ai";
-class LiveAPI {
-  constructor({ url, apiKey }) {
-    this.client = new MultimodalLiveClient({ url, apiKey });
-    this.audioStreamerRef = null;
-    this.connected = false;
-    this.config = {
-      model: "models/gemini-2.0-flash-exp"
-    };
-    this.volume = 0;
-    this.attachClientListeners();
-  }
-
-  attachClientListeners() {
-    this.client
-      .on("close", () => {
-        this.connected = false;
-        console.log("Connection closed");
-      })
-      .on("interrupted", () => {
-        if (this.audioStreamerRef) {
-          this.audioStreamerRef.stop();
-        }
-      })
-      .on("audio", (data) => {
-        if (this.audioStreamerRef) {
-          this.audioStreamerRef.addPCM16(new Uint8Array(data));
-        }
-      });
-  }
-
-  async connect() {
-    if (!this.config) {
-      throw new Error("Configuration has not been set");
-    }
-    this.client.disconnect();
-    await this.client.connect(this.config);
-    this.connected = true;
-    console.log("Connected successfully!", this.config);
-  }
-
-  disconnect() {
-    this.client.disconnect();
-    this.connected = false;
-    console.log("Disconnected successfully.");
-  }
-
-  setConfig(newConfig) {
-    this.config = newConfig;
-    console.log("New config set:", this.config);
-  }
-
-  getConfig() {
-    return this.config;
-  }
-
-  isConnected() {
-    return this.connected;
-  }
-}
-function useLiveAPI({ url, apiKey }) {
-  return new LiveAPI({ url, apiKey });
-}
 const host = "generativelanguage.googleapis.com";
 const uri = `wss://${host}/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent`;
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
@@ -158,33 +96,12 @@ const LiveAPIContext = {
   }
 };
 
-document.querySelector('#app').innerHTML = `
-  <div class="container mx-auto py-8">
-  <audio-stream-player id="voiceplayer"></audio-stream-player>
-    <call-control-bar state="active"></call-control-bar>
-    </div>
-`;
 const audioRecorder = new AudioRecorder();
 audioRecorder.on("data", (data) => {
   senddata("audio/pcm;rate=16000", data);
 });
 
-function senddata(type= "audio/pcm;rate=16000", data) {
-  const mapdata = {
-    "mimeType": type,
-    "data": data
-  };
-  liveAPI.client.sendRealtimeInput([mapdata]);
-}
-const onSubmit = (textInput = "texto de prueba",e) => {
-  if (e) e.preventDefault();
-  liveAPI.client.send([{ text: textInput }]);
-};
-
-
 const liveAPI = LiveAPIContext.initialize({ url: uri, apiKey: API_KEY });
-
-
 const callControlBar = document.querySelector('call-control-bar');
 callControlBar.addEventListener('button-click', (e) => {
   console.log('Button Clicked:', e.detail);
@@ -206,6 +123,22 @@ const screenimgextractor = new MediaFrameExtractor({
   scale: 0.5, // 50% of original size
   quality: 0.8 // 80% JPEG quality
 });
+console.log(liveAPI);
+liveAPI.client.setConfig(config);
+liveAPI.client.on("toolcall", onToolCall);
+setTimeout(() => {
+  liveAPI.connect();
+
+/*   onSubmit("hola como estas, hablame en español, y dime la fecha actual en string y no en number");
+ */}, 1111);
+ const unsubscribescreen = screenCapture.addEventListener((state) => {
+  console.log('Stream state changed:', state);
+  // Update your UI here
+});
+const unsubscribewebcam = webcam.addEventListener((state) => {
+  console.log('Webcam state changed:', state);
+  // Update your UI here
+}); 
 function handlemedia(buttonType, buttonState) {
   console.log("handlemedia", buttonType, buttonState);
   switch (buttonType) {
@@ -287,8 +220,19 @@ async function getframesandsend(name) {
   }
 }
 
+function senddata(type= "audio/pcm;rate=16000", data) {
+  const mapdata = {
+    "mimeType": type,
+    "data": data
+  };
+  liveAPI.client.sendRealtimeInput([mapdata]);
+}
+const onSubmit = (textInput = "texto de prueba",e) => {
+  if (e) e.preventDefault();
+  liveAPI.client.send([{ text: textInput }]);
+};
 
-const onToolCall = (toolCall) => {
+function onToolCall(toolCall){
   console.log(`got toolcall`, toolCall);
   const fc = toolCall.functionCalls.find(
       (fc) => fc.name === declaration.name
@@ -310,19 +254,3 @@ const onToolCall = (toolCall) => {
   );
 }
 };
-console.log(liveAPI);
-liveAPI.client.setConfig(config);
-liveAPI.client.on("toolcall", onToolCall);
-setTimeout(() => {
-  liveAPI.connect();
-
-/*   onSubmit("hola como estas, hablame en español, y dime la fecha actual en string y no en number");
- */}, 1111);
- const unsubscribescreen = screenCapture.addEventListener((state) => {
-  console.log('Stream state changed:', state);
-  // Update your UI here
-});
-const unsubscribewebcam = webcam.addEventListener((state) => {
-  console.log('Webcam state changed:', state);
-  // Update your UI here
-}); 
