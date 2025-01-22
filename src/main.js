@@ -205,7 +205,7 @@ async function getframesandsend(name) {
             "mimeType": frame.mimeType,
             "data": frame.data
           };
-          client.client.sendRealtimeInput([mapdata]);
+          liveAPI.client.sendRealtimeInput([mapdata]);
             
         });
       } catch (error) {
@@ -244,7 +244,7 @@ function onToolCall(toolCall){
   if (toolCall.functionCalls.length) {
   setTimeout(
     () =>
-      client.sendToolResponse({
+      liveAPI.client.sendToolResponse({
         functionResponses: toolCall.functionCalls.map((fc) => ({
           response: { output: { success: true } },
           id: fc.id,
