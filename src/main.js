@@ -5,19 +5,78 @@ import './components/audioviewer.js'
 import { EventEmitter } from "eventemitter3";
 import { difference, set } from "lodash";
 import { blobToJSON, base64ToArrayBuffer,functions1 } from "./utils";
-import {AudioRecorder, useLiveAPI} from './media/audiorecorder.js';
+import {AudioRecorder} from './media/audiorecorder.js';
 import { WebcamCapture, ScreenCapture,MediaFrameExtractor } from './media/videocapture.js';
 import { MultimodalLiveClient, MultimodalLiveAPI} from "./clientemit.js";
 import { SchemaType } from "@google/generative-ai";
-import { live } from 'lit/directives/live.js';
+class LiveAPI {
+  constructor({ url, apiKey }) {
+    this.client = new MultimodalLiveClient({ url, apiKey });
+    this.audioStreamerRef = null;
+    this.connected = false;
+    this.config = {
+      model: "models/gemini-2.0-flash-exp"
+    };
+    this.volume = 0;
+    this.attachClientListeners();
+  }
 
+  attachClientListeners() {
+    this.client
+      .on("close", () => {
+        this.connected = false;
+        console.log("Connection closed");
+      })
+      .on("interrupted", () => {
+        if (this.audioStreamerRef) {
+          this.audioStreamerRef.stop();
+        }
+      })
+      .on("audio", (data) => {
+        if (this.audioStreamerRef) {
+          this.audioStreamerRef.addPCM16(new Uint8Array(data));
+        }
+      });
+  }
+
+  async connect() {
+    if (!this.config) {
+      throw new Error("Configuration has not been set");
+    }
+    this.client.disconnect();
+    await this.client.connect(this.config);
+    this.connected = true;
+    console.log("Connected successfully!", this.config);
+  }
+
+  disconnect() {
+    this.client.disconnect();
+    this.connected = false;
+    console.log("Disconnected successfully.");
+  }
+
+  setConfig(newConfig) {
+    this.config = newConfig;
+    console.log("New config set:", this.config);
+  }
+
+  getConfig() {
+    return this.config;
+  }
+
+  isConnected() {
+    return this.connected;
+  }
+}
+function useLiveAPI({ url, apiKey }) {
+  return new LiveAPI({ url, apiKey });
+}
 const host = "generativelanguage.googleapis.com";
 const uri = `wss://${host}/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent`;
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 if (typeof API_KEY !== "string") {  throw new Error("set REACT_APP_GEMINI_API_KEY in .env");} else {
   console.log("API_KEY:", API_KEY);
 }
-
 const liveAPI = new MultimodalLiveAPI({ url: uri, apiKey: API_KEY });
 
 liveAPI.client.on("toolcall", (toolCall) => {
@@ -63,11 +122,11 @@ function senddata(type= "audio/pcm;rate=16000", data) {
     "mimeType": type,
     "data": data
   };
-  client.client.sendRealtimeInput([mapdata]);
+  liveapicontext.client.sendRealtimeInput([mapdata]);
 }
 const onSubmit = (textInput = "texto de prueba",e) => {
   if (e) e.preventDefault();
-  client.client.send([{ text: textInput }]);
+  liveapicontext.client.send([{ text: textInput }]);
 };
 
 
@@ -248,10 +307,10 @@ const onToolCall = (toolCall) => {
   );
 }
 };
-const client = liveAPIContext.getLiveAPI();
-console.log(client);
-client.client.setConfig(config);
-client.client.on("toolcall", onToolCall);
+const liveapicontext = liveAPIContext.getLiveAPI();
+console.log(liveapicontext);
+liveapicontext.client.setConfig(config);
+liveapicontext.client.on("toolcall", onToolCall);
 setTimeout(() => {
   liveAPI.connect();
 
@@ -265,5 +324,3 @@ const unsubscribewebcam = webcam.addEventListener((state) => {
   console.log('Webcam state changed:', state);
   // Update your UI here
 }); 
-
-export { liveAPIContext };
