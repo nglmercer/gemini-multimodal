@@ -431,57 +431,34 @@ class LocalStorageManager {
   }
   class AudioPlayer {
     constructor() {
-        this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        this.audioQueue = [];
-        this.isPlaying = false;
-    }
+      this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      this.audioQueue = [];
+      this.isPlaying = false;
+      this.currentSource = null;
+      this.analyser = null;
+      this.dataArray = null;
+      this.bufferLength = 256;
+      this.rafId = null;
+  }
 
     async setAudioData(data, mimeType) {
       if (mimeType.includes("audio/pcm")) {
-          // Convertir PCM a WAV
-          const pcmData = this.base64ToArrayBuffer(data);
-          const wavData = encodePCMToWAV(pcmData, 24000);
+          const pcmBuffer = this.base64ToArrayBuffer(data);
+          const wavData = encodePCMToWAV(pcmBuffer, 24000);
           this.addToQueue(wavData, "audio/wav");
       } else {
           this.addToQueue(data, mimeType);
       }
-  
-      if (!this.isPlaying) {
-          this.playNextChunk();
-      }
+      
+      if (!this.isPlaying) this.playNextChunk();
   }
+
 
     addToQueue(data, mimeType) {
         this.audioQueue.push({ data, mimeType });
     }
 
-    async playNextChunk() {
-        if (this.audioQueue.length === 0) {
-            this.isPlaying = false;
-            return;
-        }
 
-        this.isPlaying = true;
-        const { data, mimeType } = this.audioQueue.shift();
-
-        // Decodificar el audio
-        const audioBuffer = await this.decodeAudioData(data, mimeType);
-
-        // Crear un buffer source
-        const source = this.audioContext.createBufferSource();
-        source.buffer = audioBuffer;
-
-        // Conectar el source al destino de audio (altavoces)
-        source.connect(this.audioContext.destination);
-
-        // Reproducir el audio
-        source.start();
-
-        // Cuando termine de reproducirse, pasar al siguiente chunk
-        source.onended = () => {
-            this.playNextChunk();
-        };
-    }
 
     async decodeAudioData(data, mimeType) {
       try {
@@ -502,19 +479,124 @@ class LocalStorageManager {
       }
       return bytes.buffer;
   }
+  async playNextChunk() {
+    if (this.audioQueue.length === 0) {
+        this.isPlaying = false;
+        return;
+    }
+
+    this.isPlaying = true;
+    const { data, mimeType } = this.audioQueue.shift();
+
+    // Configurar AnalyserNode
+    this.analyser = this.audioContext.createAnalyser();
+    this.analyser.fftSize = this.bufferLength;
+    this.dataArray = new Uint8Array(this.analyser.frequencyBinCount);
+
+    // Decodificar el audio
+    const audioBuffer = await this.decodeAudioData(data, mimeType);
+    
+    // Crear source y conectar
+    const source = this.audioContext.createBufferSource();
+    source.buffer = audioBuffer;
+    source.connect(this.analyser);
+    this.analyser.connect(this.audioContext.destination);
+    
+    // Iniciar visualización
+    this.setupVisualizer();
+
+    source.start(0);
+    this.currentSource = source;
+
+    source.onended = () => {
+        cancelAnimationFrame(this.rafId);
+        this.playNextChunk();
+    };
+}
+
+setupVisualizer() {
+    const visualizer = document.querySelector('audio-visualizer');
+    if (!visualizer) return;
+
+    const draw = () => {
+        this.analyser.getByteTimeDomainData(this.dataArray);
+        visualizer.updateData(this.dataArray);
+        this.rafId = requestAnimationFrame(draw);
+    };
+
+    this.rafId = requestAnimationFrame(draw);
+}
+
+stop() {
+    if (this.currentSource) {
+        this.currentSource.stop();
+        this.currentSource.disconnect();
+    }
+    cancelAnimationFrame(this.rafId);
+    this.audioQueue = [];
+    this.isPlaying = false;
+}
+
+  updateVisualizerInRealTime(duration) {
+    const visualizer = document.querySelector('audio-visualizer'); // 6. Obtener visualizador
+    if (!visualizer) return;
+    
+    // Limpiar intervalo previo
+    if (this.visualizerIntervalId) {
+      clearInterval(this.visualizerIntervalId);
+      this.visualizerIntervalId = null;
+    }
+
+    // Configurar nuevo intervalo
+    const updateInterval = 50;
+    const totalUpdates = duration * 1000 / updateInterval;
+    let currentUpdate = 0;
+
+    
+    this.visualizerIntervalId = setInterval(() => {
+      if (currentUpdate >= totalUpdates) {
+        clearInterval(this.visualizerIntervalId);
+        this.visualizerIntervalId = null;
+        return;
+      }
+        
+        const progress = currentUpdate / totalUpdates;
+        const samples = this.calculateCurrentSamples(progress);
+        visualizer.updateData(samples);
+        
+        currentUpdate++;
+    }, updateInterval);}
+
+calculateCurrentSamples(progress) {
+  try {
+    if (!this.pcmData || this.pcmData.length === 0) {
+      return new Float32Array(0);
+    }
+    const start = Math.floor(progress * this.pcmData.length);
+    const end = start + Math.floor(this.pcmData.length / this.bufferLength);
+    return this.pcmData.slice(start, end);
+  } catch (error) {
+    console.error('Buffer detached:', error);
+    return new Float32Array(0);
+  }
+}
 }
 
 const audioPlayer = new AudioPlayer();
 async function setAudioData(data, mimeType) {
-    audioPlayer.setAudioData(data, mimeType);
-    const visualizer = document.querySelector('audio-visualizer-2');
-    if (!visualizer) {
-      throw new Error('Audio visualizer element not found');
+  const visualizer = document.querySelector('audio-visualizer');
+
+  
+  try {
+      await audioPlayer.setAudioData(data, mimeType);
+      if (!visualizer) {
+        console.error('Visualizador no encontrado');
+        return;
     }
-
-    await visualizer.updateData(data, 'audio/pcm;rate=24000');
+  } catch (error) {
+      console.error('Error al cargar audio:', error);
+  }
 }
-
 function encodePCMToWAV(pcmData, sampleRate) {
   // Asegúrate de que pcmData sea un ArrayBuffer o un Uint8Array
   if (!(pcmData instanceof ArrayBuffer)) {

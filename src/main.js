@@ -10,7 +10,7 @@ import { EventEmitter } from "eventemitter3";
 import { blobToJSON, base64ToArrayBuffer, functions1 } from "./utils";
 import { AudioRecorder } from './media/audiorecorder.js';
 import { WebcamCapture, ScreenCapture, MediaFrameExtractor } from './media/videocapture.js';
-import { MultimodalLiveClient, MultimodalLiveAPI } from "./clientemit.js";
+import { MultimodalLiveAPI } from "./clientemit.js";
 import { SchemaType } from "@google/generative-ai";
 
 // Configuración de conexión
