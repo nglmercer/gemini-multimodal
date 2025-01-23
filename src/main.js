@@ -1,20 +1,29 @@
+/**
+ * Aplicación principal para comunicación multimodal con Gemini API
+ * Maneja entrada/salida de audio, video, pantalla y herramientas de IA
+ */
 import './style.css';
-import'./components/state.js';
-import './components/voicecomponent.js'
-import './components/audioviewer.js'
+import './components/state.js';
+import './components/voicecomponent.js';
+import './components/audioviewer.js';
 import { EventEmitter } from "eventemitter3";
-import { difference, set } from "lodash";
-import { blobToJSON, base64ToArrayBuffer,functions1 } from "./utils";
-import {AudioRecorder} from './media/audiorecorder.js';
-import { WebcamCapture, ScreenCapture,MediaFrameExtractor } from './media/videocapture.js';
-import { MultimodalLiveClient, MultimodalLiveAPI} from "./clientemit.js";
+import { blobToJSON, base64ToArrayBuffer, functions1 } from "./utils";
+import { AudioRecorder } from './media/audiorecorder.js';
+import { WebcamCapture, ScreenCapture, MediaFrameExtractor } from './media/videocapture.js';
+import { MultimodalLiveClient, MultimodalLiveAPI } from "./clientemit.js";
 import { SchemaType } from "@google/generative-ai";
+
+// Configuración de conexión
 const host = "generativelanguage.googleapis.com";
 const uri = `wss://${host}/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent`;
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
-if (typeof API_KEY !== "string") {  throw new Error("set REACT_APP_GEMINI_API_KEY in .env");} else {
-  console.log("API_KEY:", API_KEY);
+
+// Validación de API Key
+if (typeof API_KEY !== "string") {
+  throw new Error("set REACT_APP_GEMINI_API_KEY in .env");
 }
+
+// Configuración de herramientas para el modelo
 const declaration = {
   name: "render_altair",
   description: "Displays an altair graph in json format.",
@@ -23,39 +32,36 @@ const declaration = {
     properties: {
       json_graph: {
         type: SchemaType.STRING,
-        description:
-          "JSON STRING representation of the graph to render. Must be a string, not a json object",
+        description: "JSON STRING representation of the graph to render."
       },
     },
     required: ["json_graph"],
   },
 };
+
+// Configuración principal del modelo
 const config = {
   model: "models/gemini-2.0-flash-exp",
   generationConfig: {
-  responseModalities: "audio",
+    responseModalities: "audio",
     speechConfig: {
       voiceConfig: { prebuiltVoiceConfig: { voiceName: "Aoede" } },
     },
   },
   systemInstruction: {
-    parts: [
-      {
-        text: 'tu eres un agente de chat, debes responder en español siempre',
-      },
-    ],
+    parts: [{ text: 'Eres un agente de chat, debes responder en español siempre' }],
   },
-  tools: [{ googleSearch: {
-/*     googleApplicationCredentials: process.env.GOOGLE_APPLICATION_CREDENTIALS,
-    apiKey: process.env.GOOGLE_API_KEY,
-    location: "us-central1",
-    engine: "custom_search_engine",
-    customSearchEngineId: "0123456789", */
-  } }, { functionDeclarations: [declaration] }],
-}
+  tools: [
+    { googleSearch: { /* Configuración de búsqueda */ } },
+    { functionDeclarations: [declaration] }
+  ],
+};
+
+// Contexto de la API Live
 const LiveAPIContext = {
   instance: null,
   config: config,
+  
   initialize({ url, apiKey }) {
     if (!this.instance) {
       this.instance = new MultimodalLiveAPI({ url, apiKey });
@@ -68,189 +74,123 @@ const LiveAPIContext = {
   setupEventListeners() {
     this.instance.client
       .on("toolcall", this.handleToolCall)
-      .on("toolcallcancellation", console.log)
       .on("setupcomplete", () => console.log("Setup complete"))
       .on("interrupted", () => console.log("Interrupted"))
       .on("turncomplete", () => console.log("Turn complete"));
   },
 
   handleToolCall(toolCall) {
-    const declaration = LiveAPIContext.config.tools[1].functionDeclarations[0];
     const fc = toolCall.functionCalls.find(fc => fc.name === declaration.name);
+    if (fc) setJSONString(fc.args.json_graph);
     
-    if (fc) {
-      const str = fc.args.json_graph;
-      setJSONString(str);
-    }
-
     if (toolCall.functionCalls.length) {
-      setTimeout(() => {
-        this.sendToolResponse({
-          functionResponses: toolCall.functionCalls.map(fc => ({
-            response: { output: { success: true } },
-            id: fc.id
-          }))
-        });
-      }, 200);
+      setTimeout(() => this.sendToolResponse({
+        functionResponses: toolCall.functionCalls.map(fc => ({
+          response: { output: { success: true } },
+          id: fc.id
+        }))
+      }), 200);
     }
   }
 };
 
-const audioRecorder = new AudioRecorder();
-audioRecorder.on("data", (data) => {
-  senddata("audio/pcm;rate=16000", data);
-});
+// Configuración de medios
+const mediaConfig = {
+  audioRecorder: new AudioRecorder(),
+  screenCapture: new ScreenCapture(),
+  webcam: new WebcamCapture(),
+  extractors: {
+    webcam: new MediaFrameExtractor({ fps: 1, scale: 0.5, quality: 0.8 }),
+    screen: new MediaFrameExtractor({ fps: 1, scale: 0.5, quality: 0.8 })
+  },
+  active: { webcam: false, screen: false }
+};
 
+// Inicialización de componentes
 const liveAPI = LiveAPIContext.initialize({ url: uri, apiKey: API_KEY });
 const callControlBar = document.querySelector('call-control-bar');
-callControlBar.addEventListener('button-click', (e) => {
-  console.log('Button Clicked:', e.detail);
-  handlemedia(e.detail.buttonType, e.detail.buttonState);
-});
-const mediaisActive = {
-  webcam: false,
-  screen: false,
-};
-const screenCapture = new ScreenCapture();
-const webcam = new WebcamCapture();
-const webcamimgextractor = new MediaFrameExtractor({
-  fps: 1, // 1 frame per second
-  scale: 0.5, // 50% of original size
-  quality: 0.8 // 80% JPEG quality
-});
-const screenimgextractor = new MediaFrameExtractor({
-  fps: 1, // 1 frame per second
-  scale: 0.5, // 50% of original size
-  quality: 0.8 // 80% JPEG quality
-});
-console.log(liveAPI);
-liveAPI.client.setConfig(config);
-liveAPI.client.on("toolcall", onToolCall);
+
+// Event Listeners
+callControlBar.addEventListener('button-click', handleControlButton);
+mediaConfig.audioRecorder.on("data", data => sendData("audio/pcm;rate=16000", data));
+
+// Inicialización diferida
 setTimeout(() => {
   liveAPI.connect();
+  console.log("Conexión API inicializada:", liveAPI);
+}, 1111);
 
-/*   onSubmit("hola como estas, hablame en español, y dime la fecha actual en string y no en number");
- */}, 1111);
- const unsubscribescreen = screenCapture.addEventListener((state) => {
-  console.log('Stream state changed:', state);
-  // Update your UI here
-});
-const unsubscribewebcam = webcam.addEventListener((state) => {
-  console.log('Webcam state changed:', state);
-  // Update your UI here
-}); 
-function handlemedia(buttonType, buttonState) {
-  console.log("handlemedia", buttonType, buttonState);
-  switch (buttonType) {
+// Manejadores de medios
+async function handleControlButton(e) {
+  const { buttonType, buttonState } = e.detail;
+  console.log('Control:', buttonType, buttonState);
+  
+  switch(buttonType) {
     case "mic":
-      if (buttonState) {
-        audioRecorder.start();
-        console.log("audioRecorder.start()");
-      } else {
-        audioRecorder.stop();
-        console.log("audioRecorder.stop()");
-      }
+      buttonState ? mediaConfig.audioRecorder.start() : mediaConfig.audioRecorder.stop();
       break;
     case "screen":
-      if (buttonState) {
-        screenCapture.start();
-        const video = document.getElementById("screen");
-        screenCapture.setVideoElement(video);
-        getframesandsend("screen");
-      } else {
-        screenCapture.stop();
-        mediaisActive.screen = false;
-      }
+      buttonState ? startScreenCapture() : stopScreenCapture();
       break;
     case "video":
-      if (buttonState) {
-        webcam.start();
-        const video = document.getElementById("webcam");
-        webcam.setVideoElement(video);
-        getframesandsend("webcam");
-      } else {
-        webcam.stop();
-        mediaisActive.webcam = false;
-      }
-      break;
-    default:
+      buttonState ? startWebcam() : stopWebcam();
       break;
   }
 }
 
+// Funciones de manejo de medios
+async function startScreenCapture() {
+  mediaConfig.screenCapture.start();
+  const video = document.getElementById("screen");
+  mediaConfig.screenCapture.setVideoElement(video);
+  await processMediaFrames("screen");
+}
 
-async function getframesandsend(name) {
-  const element = {
-    webcam: webcamimgextractor,
-    screen: screenimgextractor,
-  };
-  const mediaelement = name === "webcam" ? webcam : screenCapture;
-  const frameExtractor = element[name];
-  if (!mediaisActive[name]) {
-    if (frameExtractor) {
-      try {
-        console.log("getframesandsend", name, mediaelement, frameExtractor);
-        // First, start the media capture and wait for it to initialize
-        await mediaelement.start();
-        
-        mediaisActive[name] = true;
-        frameExtractor.setMediaCapture(mediaelement);
-        
-        // Small delay to ensure stream is properly initialized
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        frameExtractor.start((frame) => {
-          console.log('Received frame:', frame);
-          const mapdata = {
-            "mimeType": frame.mimeType,
-            "data": frame.data
-          };
-          liveAPI.client.sendRealtimeInput([mapdata]);
-            
-        });
-      } catch (error) {
-        console.error(`Error initializing ${name} capture:`, error);
-        mediaisActive[name] = false;
-        
-        // Clean up if there's an error
-        mediaelement.stop();
-        frameExtractor.stop();
-      }
+async function startWebcam() {
+  mediaConfig.webcam.start();
+  const video = document.getElementById("webcam");
+  mediaConfig.webcam.setVideoElement(video);
+  await processMediaFrames("webcam");
+}
+
+async function processMediaFrames(source) {
+  const extractor = mediaConfig.extractors[source];
+  const media = source === "webcam" ? mediaConfig.webcam : mediaConfig.screenCapture;
+
+  if (!mediaConfig.active[source]) {
+    try {
+      await media.start();
+      mediaConfig.active[source] = true;
+      extractor.setMediaCapture(media);
+      
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      extractor.start(frame => {
+        liveAPI.client.sendRealtimeInput([{
+          mimeType: frame.mimeType,
+          data: frame.data
+        }]);
+      });
+    } catch (error) {
+      console.error(`Error en ${source}:`, error);
+      mediaConfig.active[source] = false;
+      media.stop();
+      extractor.stop();
     }
   }
 }
 
-function senddata(type= "audio/pcm;rate=16000", data) {
-  const mapdata = {
-    "mimeType": type,
-    "data": data
-  };
-  liveAPI.client.sendRealtimeInput([mapdata]);
+// Funciones de utilidad
+function sendData(type, data) {
+  liveAPI.client.sendRealtimeInput([{ mimeType: type, data }]);
 }
-const onSubmit = (textInput = "texto de prueba",e) => {
+
+function onSubmit(textInput = "texto de prueba", e) {
   if (e) e.preventDefault();
   liveAPI.client.send([{ text: textInput }]);
-};
-
-function onToolCall(toolCall){
-  console.log(`got toolcall`, toolCall);
-  const fc = toolCall.functionCalls.find(
-      (fc) => fc.name === declaration.name
-  );
-  if (fc) {
-      const str = (fc.args).json_graph;
-      setJSONString(str);
-  }
-  if (toolCall.functionCalls.length) {
-  setTimeout(
-    () =>
-      liveAPI.client.sendToolResponse({
-        functionResponses: toolCall.functionCalls.map((fc) => ({
-          response: { output: { success: true } },
-          id: fc.id,
-        })),
-      }),
-    200,
-  );
 }
-};
+
+function setJSONString(jsonString) {
+  // Implementar lógica de renderizado de gráficos
+  console.log("Recibido JSON para renderizar:", jsonString);
+}
