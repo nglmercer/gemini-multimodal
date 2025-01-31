@@ -9,7 +9,7 @@ import './components/audioviewer.js';
 import { EventEmitter } from "eventemitter3";
 import { blobToJSON, base64ToArrayBuffer, functions1 } from "./utils";
 import { AudioRecorder } from './media/audiorecorder.js';
-import { WebcamCapture, ScreenCapture, MediaFrameExtractor } from './media/videocapture.js';
+import { WebcamCapture, ScreenCapture, MediaFrameExtractor,VideoContainerManager } from './media/videocapture.js';
 import { MultimodalLiveAPI } from "./clientemit.js";
 import { SchemaType } from "@google/generative-ai";
 
@@ -49,7 +49,8 @@ const config = {
     },
   },
   systemInstruction: {
-    parts: [{ text: `Eres una IA de traducción. Tu tarea es recibir un texto en español y devolver un JSON con las traducciones al inglés y japonés.  
+    parts: [{ text: `Eres una IA de traducción. Tu tarea es recibir un texto en español y devolver un JSON con las traducciones al inglés y japonés. 
+  o tambien si no se entiende o se hacen gestos acciones o onomatopeyas puedes narrarlo en el formato deseado.
 Formato de salida:  
 {  
   "input": "<texto original en español usando muchos terminos en ingles tambien>"
@@ -148,11 +149,14 @@ async function handleControlButton(e) {
   }
 }
 
+const videoManager = new VideoContainerManager();
+videoManager.updateContainerVisibility();
 // Funciones de manejo de medios
 async function startScreenCapture() {
   mediaConfig.screenCapture.start();
   const video = document.getElementById("screen");
   mediaConfig.screenCapture.setVideoElement(video);
+  videoManager.addActiveVideoSource("screen");
   await processMediaFrames("screen");
 }
 
@@ -160,9 +164,18 @@ async function startWebcam() {
   mediaConfig.webcam.start();
   const video = document.getElementById("webcam");
   mediaConfig.webcam.setVideoElement(video);
+  videoManager.addActiveVideoSource("webcam");
   await processMediaFrames("webcam");
 }
+function stopScreenCapture() {
+  mediaConfig.screenCapture.stop();
+  videoManager.removeActiveVideoSource("screen");
+}
 
+function stopWebcam() {
+  mediaConfig.webcam.stop();
+  videoManager.removeActiveVideoSource("webcam");
+}
 async function processMediaFrames(source) {
   const extractor = mediaConfig.extractors[source];
   const media = source === "webcam" ? mediaConfig.webcam : mediaConfig.screenCapture;

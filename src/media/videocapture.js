@@ -318,6 +318,42 @@ class MediaFrameExtractor {
     };
   }
 }
+class VideoContainerManager {
+  constructor() {
+      this.videoWrappers = document.querySelectorAll('.video-wrapper');
+      this.videoContainerGrid = document.querySelector('.video-container-grid');
+      this.activeVideoSources = new Set();
+  }
+
+  updateContainerVisibility() {
+      // Si no hay fuentes de video activas, ocultar el contenedor
+      if (this.activeVideoSources.size === 0) {
+          this.videoContainerGrid.classList.add('hidden');
+      } else {
+          this.videoContainerGrid.classList.remove('hidden');
+      }
+
+      // Ocultar wrappers individuales que no están activos
+      this.videoWrappers.forEach(wrapper => {
+          const videoId = wrapper.querySelector('video').id;
+          if (!this.activeVideoSources.has(videoId)) {
+              wrapper.classList.add('hidden');
+          } else {
+              wrapper.classList.remove('hidden');
+          }
+      });
+  }
+
+  addActiveVideoSource(sourceId) {
+      this.activeVideoSources.add(sourceId);
+      this.updateContainerVisibility();
+  }
+
+  removeActiveVideoSource(sourceId) {
+      this.activeVideoSources.delete(sourceId);
+      this.updateContainerVisibility();
+  }
+}
 /* const screenCapture = new ScreenCapture();
 
 // Add state change listener
@@ -338,7 +374,7 @@ screenCapture.stop();
 
 // Remove listener when done
 unsubscribe(); */
-export { ScreenCapture, WebcamCapture, MediaFrameExtractor };
+export { ScreenCapture, WebcamCapture, MediaFrameExtractor,VideoContainerManager };
 // Create an instance
 /* const webcam = new WebcamCapture();
 
