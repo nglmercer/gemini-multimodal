@@ -1,201 +1,4 @@
 import { difference, set } from "lodash";
-class LocalStorageManager {
-    constructor(key) {
-      this.key = key;
-      this.initializeStorage();
-    }
-    static getStorage(store) {
-      const storetype = typeof store;
-      try {
-        return JSON.parse(localStorage.getItem(store));
-       } catch (error) {
-        console.log(error, storetype);
-          return [];
-        }
-    }
-    async initializeStorage() {
-      try {
-        const currentData = await this.getAll();
-        if (!currentData.length) {
-          await this.saveItems([]);
-        }
-      } catch (error) {
-        this.handleError('Error initializing storage', error);
-      }
-    }
-  
-    deepCopy(obj) {
-      try {
-        return JSON.parse(JSON.stringify(obj));
-      } catch (error) {
-        this.handleError('Error creating deep copy', error);
-        return null;
-      }
-    }
-  
-    // Método para generar un nuevo ID único o reusar un ID existente
-    generateUniqueId(items, proposedId = null) {
-      // Convertir ID a número si es un string
-      proposedId = proposedId !== null ? Number(proposedId) : null;
-  
-      const existingIds = new Set(items.map(item => item.id));
-      
-      // Encontrar espacios vacíos
-      const findEmptySpace = () => {
-        for (let i = 0; i <= items.length; i++) {
-          if (!existingIds.has(i)) {
-            return i;
-          }
-        }
-        return items.length;
-      };
-  
-      // Si se propone un ID específico
-      if (proposedId !== null) {
-        // Si el ID propuesto no existe, usarlo
-        if (!existingIds.has(proposedId)) {
-          return proposedId;
-        }
-        
-        // Buscar el primer espacio vacío
-        return findEmptySpace();
-      }
-      
-      // Si no hay ID propuesto, encontrar el primer espacio vacío
-      return findEmptySpace();
-    }
-  
-    // Método para asegurar que un objeto tenga un ID único
-    ensureObjectHasId(item, items) {
-      const itemCopy = this.deepCopy(item);
-      
-      // Convertir ID a número si es un string
-      if (itemCopy.id !== undefined) {
-        itemCopy.id = Number(itemCopy.id);
-      }
-      
-      // Generar o ajustar el ID
-      itemCopy.id = this.generateUniqueId(items, itemCopy.id);
-      
-      return itemCopy;
-    }
-  
-    async add(item) {
-      try {
-        const items = await this.getAll();
-        
-        // Aseguramos que el item tenga un ID único
-        const itemWithId = this.ensureObjectHasId(item, items);
-        
-        // Verificamos si ya existe un objeto similar
-        const exists = items.some(existingItem =>
-          this.areObjectsEqual(existingItem, itemWithId)
-        );
-        
-        if (!exists) {
-          items.push(itemWithId);
-          await this.saveItems(items);
-          return itemWithId.id;
-        }
-        
-        return false;
-      } catch (error) {
-        this.handleError('Error adding item', error);
-      }
-    }
-  
-    // Los demás métodos permanecen igual que en la versión anterior
-    async remove(identifier) {
-      try {
-        const items = await this.getAll();
-        // Convertir identificador a número si es posible
-        const numIdentifier = isNaN(Number(identifier)) ? identifier : Number(identifier);
-        
-        const updatedItems = items.filter(item =>
-          item.id !== numIdentifier && item.name !== numIdentifier
-        );
-        
-        if (updatedItems.length !== items.length) {
-          await this.saveItems(updatedItems);
-          return true;
-        }
-        return false;
-      } catch (error) {
-        this.handleError('Error removing item', error);
-      }
-    }
-  
-    async get(identifier) {
-      try {
-        const items = await this.getAll();
-        // Convertir identificador a número si es posible
-        const numIdentifier = isNaN(Number(identifier)) ? identifier : Number(identifier);
-        
-        const item = items.find(item =>
-          item.id === numIdentifier || item.name === numIdentifier
-        );
-        
-        return item ? this.deepCopy(item) : null;
-      } catch (error) {
-        this.handleError('Error getting item', error);
-      }
-    }
-  
-    async getAll() {
-      try {
-        const items = localStorage.getItem(this.key);
-        return items ? this.deepCopy(JSON.parse(items)) : [];
-      } catch (error) {
-        this.handleError('Error getting all items', error);
-      }
-    }
-  
-    async saveItems(items) {
-      try {
-        const itemsCopy = this.deepCopy(items);
-        localStorage.setItem(this.key, JSON.stringify(itemsCopy));
-        return true;
-      } catch (error) {
-        this.handleError('Error saving items', error);
-        return false;
-      }
-    }
-  
-    async clear() {
-      try {
-        await this.saveItems([]);
-      } catch (error) {
-        this.handleError('Error clearing storage', error);
-      }
-    }
-  
-    async exists(item) {
-      try {
-        const items = await this.getAll();
-        const itemWithId = this.ensureObjectHasId(item, items);
-        
-        return items.some(existingItem =>
-          this.areObjectsEqual(existingItem, itemWithId)
-        );
-      } catch (error) {
-        this.handleError('Error checking existence', error);
-      }
-    }
-  
-    areObjectsEqual(obj1, obj2) {
-      try {
-        return JSON.stringify(obj1) === JSON.stringify(obj2);
-      } catch (error) {
-        this.handleError('Error comparing objects', error);
-        return false;
-      }
-    }
-  
-    handleError(message, error) {
-      console.error(message, error);
-      throw error;
-    }
-  }
 
   const globalmap = new Map();
   
@@ -328,6 +131,7 @@ class LocalStorageManager {
   }
   function playAudio(data) {
     console.log("playAudio", data);
+    if (!data.inlineData) return;
 /*     const player = document.getElementById('voiceplayer');
   player.setAudioData(data.inlineData.data, data.inlineData.mimeType); */
   setAudioData(data.inlineData.data, data.inlineData.mimeType);
@@ -634,4 +438,202 @@ function encodePCMToWAV(pcmData, sampleRate) {
 
   return buffer;
 }
+class LocalStorageManager {
+  constructor(key) {
+    this.key = key;
+    this.initializeStorage();
+  }
+  static getStorage(store) {
+    const storetype = typeof store;
+    try {
+      return JSON.parse(localStorage.getItem(store));
+     } catch (error) {
+      console.log(error, storetype);
+        return [];
+      }
+  }
+  async initializeStorage() {
+    try {
+      const currentData = await this.getAll();
+      if (!currentData.length) {
+        await this.saveItems([]);
+      }
+    } catch (error) {
+      this.handleError('Error initializing storage', error);
+    }
+  }
+
+  deepCopy(obj) {
+    try {
+      return JSON.parse(JSON.stringify(obj));
+    } catch (error) {
+      this.handleError('Error creating deep copy', error);
+      return null;
+    }
+  }
+
+  // Método para generar un nuevo ID único o reusar un ID existente
+  generateUniqueId(items, proposedId = null) {
+    // Convertir ID a número si es un string
+    proposedId = proposedId !== null ? Number(proposedId) : null;
+
+    const existingIds = new Set(items.map(item => item.id));
+    
+    // Encontrar espacios vacíos
+    const findEmptySpace = () => {
+      for (let i = 0; i <= items.length; i++) {
+        if (!existingIds.has(i)) {
+          return i;
+        }
+      }
+      return items.length;
+    };
+
+    // Si se propone un ID específico
+    if (proposedId !== null) {
+      // Si el ID propuesto no existe, usarlo
+      if (!existingIds.has(proposedId)) {
+        return proposedId;
+      }
+      
+      // Buscar el primer espacio vacío
+      return findEmptySpace();
+    }
+    
+    // Si no hay ID propuesto, encontrar el primer espacio vacío
+    return findEmptySpace();
+  }
+
+  // Método para asegurar que un objeto tenga un ID único
+  ensureObjectHasId(item, items) {
+    const itemCopy = this.deepCopy(item);
+    
+    // Convertir ID a número si es un string
+    if (itemCopy.id !== undefined) {
+      itemCopy.id = Number(itemCopy.id);
+    }
+    
+    // Generar o ajustar el ID
+    itemCopy.id = this.generateUniqueId(items, itemCopy.id);
+    
+    return itemCopy;
+  }
+
+  async add(item) {
+    try {
+      const items = await this.getAll();
+      
+      // Aseguramos que el item tenga un ID único
+      const itemWithId = this.ensureObjectHasId(item, items);
+      
+      // Verificamos si ya existe un objeto similar
+      const exists = items.some(existingItem =>
+        this.areObjectsEqual(existingItem, itemWithId)
+      );
+      
+      if (!exists) {
+        items.push(itemWithId);
+        await this.saveItems(items);
+        return itemWithId.id;
+      }
+      
+      return false;
+    } catch (error) {
+      this.handleError('Error adding item', error);
+    }
+  }
+
+  // Los demás métodos permanecen igual que en la versión anterior
+  async remove(identifier) {
+    try {
+      const items = await this.getAll();
+      // Convertir identificador a número si es posible
+      const numIdentifier = isNaN(Number(identifier)) ? identifier : Number(identifier);
+      
+      const updatedItems = items.filter(item =>
+        item.id !== numIdentifier && item.name !== numIdentifier
+      );
+      
+      if (updatedItems.length !== items.length) {
+        await this.saveItems(updatedItems);
+        return true;
+      }
+      return false;
+    } catch (error) {
+      this.handleError('Error removing item', error);
+    }
+  }
+
+  async get(identifier) {
+    try {
+      const items = await this.getAll();
+      // Convertir identificador a número si es posible
+      const numIdentifier = isNaN(Number(identifier)) ? identifier : Number(identifier);
+      
+      const item = items.find(item =>
+        item.id === numIdentifier || item.name === numIdentifier
+      );
+      
+      return item ? this.deepCopy(item) : null;
+    } catch (error) {
+      this.handleError('Error getting item', error);
+    }
+  }
+
+  async getAll() {
+    try {
+      const items = localStorage.getItem(this.key);
+      return items ? this.deepCopy(JSON.parse(items)) : [];
+    } catch (error) {
+      this.handleError('Error getting all items', error);
+    }
+  }
+
+  async saveItems(items) {
+    try {
+      const itemsCopy = this.deepCopy(items);
+      localStorage.setItem(this.key, JSON.stringify(itemsCopy));
+      return true;
+    } catch (error) {
+      this.handleError('Error saving items', error);
+      return false;
+    }
+  }
+
+  async clear() {
+    try {
+      await this.saveItems([]);
+    } catch (error) {
+      this.handleError('Error clearing storage', error);
+    }
+  }
+
+  async exists(item) {
+    try {
+      const items = await this.getAll();
+      const itemWithId = this.ensureObjectHasId(item, items);
+      
+      return items.some(existingItem =>
+        this.areObjectsEqual(existingItem, itemWithId)
+      );
+    } catch (error) {
+      this.handleError('Error checking existence', error);
+    }
+  }
+
+  areObjectsEqual(obj1, obj2) {
+    try {
+      return JSON.stringify(obj1) === JSON.stringify(obj2);
+    } catch (error) {
+      this.handleError('Error comparing objects', error);
+      return false;
+    }
+  }
+
+  handleError(message, error) {
+    console.error(message, error);
+    throw error;
+  }
+}
+
 export { functions1,LocalStorageManager, audioContext, blobToJSON, base64ToArrayBuffer, globalmap };

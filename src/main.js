@@ -43,7 +43,7 @@ const declaration = {
 const config = {
   model: "models/gemini-2.0-flash-exp",
   generationConfig: {
-    responseModalities: "audio",
+    responseModalities: "TEXT",
     speechConfig: {
       voiceConfig: { prebuiltVoiceConfig: { voiceName: "Aoede" } },
     },

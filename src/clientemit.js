@@ -249,7 +249,7 @@ class MultimodalLiveClient extends EventEmitter {
             return;
         }
 
-        console.log("sendRealtimeInput", chunks);
+        //console.log("sendRealtimeInput", chunks);
 
         let hasAudio = false;
         let hasVideo = false;
