@@ -130,14 +130,41 @@ import { difference, set } from "lodash";
     return data.modelTurn;
   }
   function playAudio(data) {
-    console.log("playAudio", data);
-    if (!data.inlineData) return;
+    if (!data.inlineData) {
+      console.log("playAudio", data);
+      parseResponse(data);
+      return;
+    }
 /*     const player = document.getElementById('voiceplayer');
   player.setAudioData(data.inlineData.data, data.inlineData.mimeType); */
   setAudioData(data.inlineData.data, data.inlineData.mimeType);
 
   }
-
+  function parseResponse(data) {
+    try {
+      if (!data || !data.text) {
+        throw new Error("La respuesta está vacía o es indefinida.");
+      }
+  
+      const response = data.text.trim(); // Eliminamos espacios extra
+      if (!response.startsWith("```json") || !response.endsWith("```")) {
+        throw new Error("El formato del JSON no es válido.");
+      }
+  
+      // Limpiar el JSON eliminando ```json y ```
+      const cleanedJson = response.replace(/```json\n|\n```/g, '');
+  
+      // Intentar parsear el JSON
+      const json = JSON.parse(cleanedJson);
+      
+      console.log("Respuesta exitosa:", json);
+      return json; // Devolver el objeto parseado si es válido
+    } catch (error) {
+      console.error("Error al parsear la respuesta:", error.message);
+      return null; // Devolver null en caso de error
+    }
+  }
+  
   function hasProperty(obj, prop, kind = "object") {
     return obj != null && typeof obj === "object" && typeof obj[prop] === kind;
   }

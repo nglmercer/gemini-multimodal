@@ -55,8 +55,9 @@ class MultimodalLiveClient extends EventEmitter {
             });
         }
 
+        this.disconnect();
+
         this.isConnecting = true;
-        this.isConnected = true;
         if (config) this.config = config;
         console.log("config", this.config);
         try {
@@ -82,10 +83,9 @@ class MultimodalLiveClient extends EventEmitter {
                         reject(new Error("Invalid config sent to `connect(config)`"));
                         return;
                     }
-
                     this.log(`client.${ev.type}`, `connected to socket`);
                     this.emit("open");
-                    this.connected = true;
+                    this.connected = true;  // Estado correcto aquí
                     this.ws = ws;
                     this.isConnecting = false;
                     this.emit("connected");
