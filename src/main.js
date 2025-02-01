@@ -49,7 +49,7 @@ const config = {
     },
   },
   systemInstruction: {
-    parts: [{ text: 'Eres un agente de chat, debes responder en español siempre' }],
+    parts: [{ text: 'tienes libertad de responde segun tu propio pensamiento critico y usar lenguaje natural para responder,Responde de una forma muy breve y concisa. Evita hacer preguntas.' }],
   },
   tools: [
     { googleSearch: { /* Configuración de búsqueda */ } },
