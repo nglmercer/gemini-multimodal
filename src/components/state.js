@@ -147,13 +147,6 @@ class CallControlBar extends LitElement {
           ${this.getbutton("mic")}
           ${this.getbutton("video")}
           ${this.getbutton("screen")}
-          <div class="action-button no-action outlined">
-            <div class="audioPulse">
-              <div style="animation-delay: 0ms; height: 4px;"></div>
-              <div style="animation-delay: 133ms; height: 4px;"></div>
-              <div style="animation-delay: 266ms; height: 4px;"></div>
-            </div>
-          </div>
         </nav>
         <div class="connection-container">
           <div class="connection-button-container">
