@@ -52,27 +52,6 @@ class CallControlBar extends LitElement {
       font-size: 24px;
     }
 
-    .audioPulse {
-      display: flex;
-      gap: 2px;
-    }
-
-    .audioPulse div {
-      width: 4px;
-      height: 4px;
-      background: #fff;
-      animation: pulse 1.5s infinite;
-    }
-
-    @keyframes pulse {
-      0%, 100% {
-        transform: scaleY(0.5);
-      }
-      50% {
-        transform: scaleY(1);
-      }
-    }
-
     .connection-container {
       display: flex;
       align-items: center;
@@ -147,13 +126,6 @@ class CallControlBar extends LitElement {
           ${this.getbutton("mic")}
           ${this.getbutton("video")}
           ${this.getbutton("screen")}
-          <div class="action-button no-action outlined">
-            <div class="audioPulse">
-              <div style="animation-delay: 0ms; height: 4px;"></div>
-              <div style="animation-delay: 133ms; height: 4px;"></div>
-              <div style="animation-delay: 266ms; height: 4px;"></div>
-            </div>
-          </div>
         </nav>
         <div class="connection-container">
           <div class="connection-button-container">
