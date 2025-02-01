@@ -17,5 +17,3 @@ Emittertranslation.on('translation', translation => {
 });
 
 queue.addToQueue({ input: 'Hola', traducciones: { es: 'Hola', en: 'Hello' } });
-queue.addToQueue({ input: '¿Cómo estás?', traducciones: { es: '¿Cómo estás?', en: 'How are you?' } });
-queue.addToQueue({ input: '¿Qué tal?', traducciones: { es: '¿Qué tal?', en: 'How are you?' } });
