@@ -15,7 +15,7 @@ class AudioVisualizer extends HTMLElement {
         this.shadowRoot.innerHTML = `
             <style>
                 :host {
-                    --primary-color: #00ff00;
+                    --primary-color: gray;
                     --secondary-color: #ff00ff;
                     --background: #1a1a1a;
                     --bar-width: 4px;
@@ -281,10 +281,13 @@ class CirculeVisualizer extends BaseVisualizer {
 class PulseVisualizer extends BaseVisualizer {
     draw(dataArray) {
         const { ctx, canvas } = this;
-        const barWidth = 4; // Ancho de cada barra
-        const gap = 2; // Espacio entre las barras
         const maxBarHeight = canvas.height / 2; // Altura máxima de las barras
         const primaryColor = getComputedStyle(this.visualizer).getPropertyValue('--primary-color');
+
+        // Calcular el ancho de cada barra y el espacio entre ellas
+        const totalGapWidth = 2 * (dataArray.length - 1); // Espacio total entre barras (2px de gap entre cada barra)
+        const totalBarWidth = canvas.width - totalGapWidth; // Ancho total disponible para las barras
+        const barWidth = totalBarWidth / dataArray.length; // Ancho de cada barra
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -292,7 +295,7 @@ class PulseVisualizer extends BaseVisualizer {
             const barHeight = (dataArray[i] / 255) * maxBarHeight;
 
             // Posición horizontal de la barra
-            const x = i * (barWidth + gap);
+            const x = i * (barWidth + 2); // 2px de espacio entre barras
 
             // Dibujar la barra
             ctx.fillStyle = primaryColor;
