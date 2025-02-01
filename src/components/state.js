@@ -43,34 +43,23 @@ class CallControlBar extends LitElement {
       cursor: pointer;
       transition: background-color 0.3s;
     }
-
+    .btn-base {
+      border: none;
+      border-radius: 50%;
+      width: 50px;
+      height: 50px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
     .action-button:hover {
       background: #5c5c5c;
     }
 
     .action-button .material-symbols-outlined {
       font-size: 24px;
-    }
-
-    .audioPulse {
-      display: flex;
-      gap: 2px;
-    }
-
-    .audioPulse div {
-      width: 4px;
-      height: 4px;
-      background: #fff;
-      animation: pulse 1.5s infinite;
-    }
-
-    @keyframes pulse {
-      0%, 100% {
-        transform: scaleY(0.5);
-      }
-      50% {
-        transform: scaleY(1);
-      }
     }
 
     .connection-container {
@@ -107,14 +96,16 @@ class CallControlBar extends LitElement {
       "video": "hangout_video_off",
       "pause": "play_arrow",
       "connect": "play_arrow",
-      "screen": "cancel_presentation"
+      "screen": "cancel_presentation",
+      "configure": "settings"
     }
     this.inactiveicons = {
       "mic": "mic",
       "video": "videocam",
       "pause": "pause",
       "connect": "pause",
-      "screen": "screen_share"
+      "screen": "screen_share",
+      "configure": "settings"
     }
   }
 
@@ -152,8 +143,13 @@ class CallControlBar extends LitElement {
           <div class="connection-button-container">
             ${this.getbutton("connect")}
           </div>
-          <span class="text-indicator">${this.state === 'active' ? 'Stream' : 'Disconnected'}</span>
-        </div>
+          <button class="btn-base"  data-type="state">
+          <span class="material-symbols-outlined">${this.state === 'active' ? 'Stream' : 'Disconnected'}</span>
+        </button>
+        ${this.getBasebutton("configure", "settings")}
+
+      </div>
+
       </section>
     `;
   }
@@ -161,6 +157,18 @@ class CallControlBar extends LitElement {
     return html`
       <button 
         class="action-button ${type}-button ${this.buttonStates[type] ? 'active' : ''}" 
+        data-type="${type}"
+      >
+        <span class="material-symbols-outlined">
+          ${this.getButtonIcon(type)}
+        </span>
+      </button>
+    `;
+  }
+  getBasebutton(type, icon) {
+    return html`
+      <button 
+        class="btn-base ${type}-button action-button" 
         data-type="${type}"
       >
         <span class="material-symbols-outlined">
