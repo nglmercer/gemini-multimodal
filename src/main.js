@@ -49,7 +49,7 @@ const config = {
     },
   },
   systemInstruction: {
-    parts: [{ text: 'tienes libertad de responde segun tu propio pensamiento critico y usar lenguaje natural para responder,Responde de una forma muy breve y concisa. Evita hacer preguntas.' }],
+    parts: [{ text: 'tienes libertad de responde segun tu propio pensamiento critico y usar lenguaje natural para responder,Responde de una forma muy breve y concisa. Evita hacer preguntas.siempre responde en el idioma que entiendas la pregunta o el input' }],
   },
   tools: [
     { googleSearch: { /* Configuración de búsqueda */ } },

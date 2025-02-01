@@ -5,7 +5,7 @@ class AudioVisualizer extends HTMLElement {
 
     constructor() {
         super();
-        this.attachShadow({ mode: 'open' });
+        this.attachShadow({ mode: 'open', delegatesFocus: true });
         this.visualizers = new Map();
         this.currentVisualizer = null;
         this.particles = [];
@@ -15,7 +15,7 @@ class AudioVisualizer extends HTMLElement {
         this.shadowRoot.innerHTML = `
             <style>
                 :host {
-                    --primary-color: #00ff00;
+                    --primary-color: gray;
                     --secondary-color: #ff00ff;
                     --background: #1a1a1a;
                     --bar-width: 4px;
@@ -26,7 +26,7 @@ class AudioVisualizer extends HTMLElement {
                 canvas {
                     width: 100%;
                     height: 200px;
-                    background: var(--background);
+                    background: inherit;
                     transition: background 0.3s ease;
                 }
             </style>
@@ -45,6 +45,7 @@ class AudioVisualizer extends HTMLElement {
         this.registerVisualizer('centered-bars', CenteredBarsVisualizer);
         this.registerVisualizer('floating-bars', FloatingBarsVisualizer);
         this.registerVisualizer('circles', CirculeVisualizer);
+        this.registerVisualizer('pulse', PulseVisualizer); // ← Nuevo visualizador
         // Registrar otros visualizadores aquí...
     }
     startVisualization() {
@@ -275,6 +276,31 @@ class CirculeVisualizer extends BaseVisualizer {
             i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
         });
         ctx.stroke();
+    }
+}
+class PulseVisualizer extends BaseVisualizer {
+    draw(dataArray) {
+        const { ctx, canvas } = this;
+        const maxBarHeight = canvas.height / 2; // Altura máxima de las barras
+        const primaryColor = getComputedStyle(this.visualizer).getPropertyValue('--primary-color');
+
+        // Calcular el ancho de cada barra y el espacio entre ellas
+        const totalGapWidth = 2 * (dataArray.length - 1); // Espacio total entre barras (2px de gap entre cada barra)
+        const totalBarWidth = canvas.width - totalGapWidth; // Ancho total disponible para las barras
+        const barWidth = totalBarWidth / dataArray.length; // Ancho de cada barra
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        for (let i = 0; i < dataArray.length; i++) {
+            const barHeight = (dataArray[i] / 255) * maxBarHeight;
+
+            // Posición horizontal de la barra
+            const x = i * (barWidth + 2); // 2px de espacio entre barras
+
+            // Dibujar la barra
+            ctx.fillStyle = primaryColor;
+            ctx.fillRect(x, canvas.height / 2 - barHeight / 2, barWidth, barHeight);
+        }
     }
 }
 // Registrar el custom element
