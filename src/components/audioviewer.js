@@ -5,7 +5,7 @@ class AudioVisualizer extends HTMLElement {
 
     constructor() {
         super();
-        this.attachShadow({ mode: 'open' });
+        this.attachShadow({ mode: 'open', delegatesFocus: true });
         this.visualizers = new Map();
         this.currentVisualizer = null;
         this.particles = [];
@@ -26,7 +26,7 @@ class AudioVisualizer extends HTMLElement {
                 canvas {
                     width: 100%;
                     height: 200px;
-                    background: var(--background);
+                    background: inherit;
                     transition: background 0.3s ease;
                 }
             </style>
@@ -45,6 +45,7 @@ class AudioVisualizer extends HTMLElement {
         this.registerVisualizer('centered-bars', CenteredBarsVisualizer);
         this.registerVisualizer('floating-bars', FloatingBarsVisualizer);
         this.registerVisualizer('circles', CirculeVisualizer);
+        this.registerVisualizer('pulse', PulseVisualizer); // ← Nuevo visualizador
         // Registrar otros visualizadores aquí...
     }
     startVisualization() {
@@ -275,6 +276,28 @@ class CirculeVisualizer extends BaseVisualizer {
             i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
         });
         ctx.stroke();
+    }
+}
+class PulseVisualizer extends BaseVisualizer {
+    draw(dataArray) {
+        const { ctx, canvas } = this;
+        const barWidth = 4; // Ancho de cada barra
+        const gap = 2; // Espacio entre las barras
+        const maxBarHeight = canvas.height / 2; // Altura máxima de las barras
+        const primaryColor = getComputedStyle(this.visualizer).getPropertyValue('--primary-color');
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        for (let i = 0; i < dataArray.length; i++) {
+            const barHeight = (dataArray[i] / 255) * maxBarHeight;
+
+            // Posición horizontal de la barra
+            const x = i * (barWidth + gap);
+
+            // Dibujar la barra
+            ctx.fillStyle = primaryColor;
+            ctx.fillRect(x, canvas.height / 2 - barHeight / 2, barWidth, barHeight);
+        }
     }
 }
 // Registrar el custom element

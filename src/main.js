@@ -57,7 +57,8 @@ Formato de salida:
   "traducciones": {
     "es": "<traducción al español>",
     "en": "<traducción al inglés>",  
-    "jp": "<traducción al japonés>"  
+    "jp": "<traducción al japonés>",
+    "pt": "<traducción al portugués>"
   }  
 }  ` 
 }],
