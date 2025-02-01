@@ -54,9 +54,10 @@ const config = {
 Formato de salida:  
 {  
   "input": "<texto original en español usando muchos terminos en ingles tambien>"
-  "traducciones": {  
-    "ingles": "<traducción al inglés>",  
-    "japones": "<traducción al japonés>"  
+  "traducciones": {
+    "es": "<traducción al español>",
+    "en": "<traducción al inglés>",  
+    "jp": "<traducción al japonés>"  
   }  
 }  ` 
 }],

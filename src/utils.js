@@ -156,7 +156,10 @@ import { difference, set } from "lodash";
   
       // Intentar parsear el JSON
       const json = JSON.parse(cleanedJson);
-      
+      const existingEmitter = Emitter.getInstance('translation');
+      if (existingEmitter) {
+        existingEmitter.emit('translation', json);
+      }
       console.log("Respuesta exitosa:", json);
       return json; // Devolver el objeto parseado si es válido
     } catch (error) {
@@ -662,5 +665,71 @@ class LocalStorageManager {
     throw error;
   }
 }
+class Emitter {
+  // Almacenar todas las instancias de Emitter
+  static instances = new Map();
 
-export { functions1,LocalStorageManager, audioContext, blobToJSON, base64ToArrayBuffer, globalmap };
+  constructor(id) {
+    if (Emitter.instances.has(id)) {
+      return Emitter.instances.get(id); // Retornar la instancia existente si ya existe
+    }
+
+    this.id = id; // Identificador único de la instancia
+    this.events = {}; // Almacenar los eventos y sus listeners
+    this.history = []; // Almacenar el historial de datos
+    Emitter.instances.set(id, this); // Registrar la instancia en el mapa
+  }
+
+  // Método para escuchar eventos
+  on(event, listener) {
+    if (!this.events[event]) {
+      this.events[event] = [];
+    }
+    this.events[event].push(listener);
+    return this; // Permite chaining
+  }
+
+  // Método para emitir eventos
+  emit(event, ...args) {
+    if (this.events[event]) {
+      this.events[event].forEach((listener) => listener(...args));
+    }
+    return this; // Permite chaining
+  }
+
+  // Método para eliminar un listener específico
+  off(event, listenerToRemove) {
+    if (this.events[event]) {
+      this.events[event] = this.events[event].filter(
+        (listener) => listener !== listenerToRemove
+      );
+    }
+    return this; // Permite chaining
+  }
+
+  // Método para guardar datos en el historial
+  saveToHistory(data) {
+    this.history.push(data); // Guardar el dato en el historial
+    return this; // Permite chaining
+  }
+
+  // Método para obtener todo el historial
+  getHistory() {
+    return this.history; // Retornar el historial completo
+  }
+
+  // Método para borrar todo el historial
+  clearHistory() {
+    this.history = []; // Vaciar el historial
+    return this; // Permite chaining
+  }
+
+  // Método estático para recuperar una instancia por su ID
+  static getInstance(id) {
+    if (!Emitter.instances.has(id)) {
+      throw new Error(`No Emitter instance found with id: ${id}`);
+    }
+    return Emitter.instances.get(id);
+  }
+}
+export { functions1,LocalStorageManager, audioContext, blobToJSON, base64ToArrayBuffer, globalmap, Emitter };
