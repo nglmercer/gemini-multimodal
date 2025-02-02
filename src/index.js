@@ -1,5 +1,4 @@
 // import components
-import { values } from 'lodash';
 import './components/translateQ.js';
 import { Emitter } from './utils.js';
 document.querySelector('#app').innerHTML = `
