@@ -20,7 +20,7 @@ const uri = `wss://${host}/ws/google.ai.generativelanguage.v1alpha.GenerativeSer
 const API_KEY = verifyAPIKey();
 function verifyAPIKey() {
   // if exist api in local storage
-  let apikey = localStorage.getItem("API_KEY");
+  let apikey = localStorage.getItem("configAPI")?.apikey;
   if (apikey && apikey !== "") {
     return apikey;
   } else {
@@ -58,7 +58,7 @@ const config = {
     },
   },
   systemInstruction: {
-    parts: [{ text: `Eres una IA de traducción. Tu tarea es recibir un texto en español y devolver un JSON con las traducciones al inglés y japonés. 
+    parts: [{ text: localStorage.getItem("configAPI")?.MAIN_INSTRUCTION || `Eres una IA de traducción. Tu tarea es recibir un texto en español y devolver un JSON con las traducciones al inglés y japonés. 
       o tambien si no se entiende o se hacen gestos acciones o onomatopeyas puedes narrarlo en el formato deseado.
     Formato de salida:  
     {  
@@ -69,7 +69,7 @@ const config = {
         "jp": "<traducción al japonés>",
         "pt": "<traducción al portugués>"
       }  
-    }  ` 
+    }  `
     }],
 
   },
@@ -154,6 +154,7 @@ async function handleControlButton(e) {
       buttonState ? startWebcam() : stopWebcam();
       break;
     case "configure":
+      document.querySelector('#modal_content').open();
       // create modal to change configuration
       break;
   }

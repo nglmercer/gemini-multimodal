@@ -87,7 +87,7 @@ function createModal() {
   document.body.appendChild(modal);
 
   setTimeout(() => {
-    modal.open();
+    //modal.open();
     const selectServers = document.querySelector('#select_servers');
     selectServers.setOptions(TRANSLATIONS);
     const lastData = localStorage.getItem("configAPI");
@@ -123,6 +123,7 @@ function getPromptData() {
     inputText: document.querySelector('#inputText').getInputValues(),
     selectServers: document.querySelector('#select_servers').getSelectedOptions(),
     selectValue: document.querySelector('#select_servers').getValue(),
+    MAIN_INSTRUCTION: getUpdatedInstructions()
   };
 }
 
