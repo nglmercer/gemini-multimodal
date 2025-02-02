@@ -1,4 +1,3 @@
-import { difference, set } from "lodash";
 class LocalStorageManager {
     constructor(key) {
       this.key = key;
@@ -290,42 +289,41 @@ class LocalStorageManager {
   }
 
   function isModelTurn(data) {
-    const  serverContent  = data;
+    const serverContent = data;
 
     console.log("isModelTurn", data);
     if (!serverContent.modelTurn || !serverContent.modelTurn.parts) {
-      console.warn("modelTurn o parts no están definidos");
-      return data;
+        return data;
     }
+
     let parts = serverContent.modelTurn?.parts;
     const audioParts = parts.filter(
-      (p) => p.inlineData && p.inlineData.mimeType.startsWith("audio/pcm"),
+        (p) => p.inlineData && p.inlineData.mimeType.startsWith("audio/pcm")
     );
     const base64s = audioParts.map((p) => p.inlineData?.data);
 
-    // strip the audio parts out of the modelTurn
-    const otherParts = difference(parts, audioParts);
-    // console.log("otherParts", otherParts);
+    // Alternativa a lodash.difference usando filter e includes
+    const otherParts = parts.filter((part) => !audioParts.includes(part));
 
     base64s.forEach((b64) => {
-      if (b64) {
-        const data = base64ToArrayBuffer(b64);
-        //this.emit("audio", data);
-        console.log(`server.audio`, `buffer (${data.byteLength})`);
-      }
+        if (b64) {
+            const data = base64ToArrayBuffer(b64);
+            console.log(`server.audio`, `buffer (${data.byteLength})`);
+        }
     });
+
     playAudio(data.modelTurn.parts[0]);
 
     if (!otherParts.length) {
-      console.log("no hay otros parts", otherParts);
-      return;
+        console.log("no hay otros parts", otherParts);
+        return;
     }
 
     parts = otherParts;
     const content = { modelTurn: { parts } };
     console.log("isModelTurn content", content);
     return data.modelTurn;
-  }
+}
   function playAudio(data) {
     console.log("playAudio", data);
 /*     const player = document.getElementById('voiceplayer');

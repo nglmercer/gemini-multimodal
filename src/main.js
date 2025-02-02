@@ -65,7 +65,6 @@ const LiveAPIContext = {
   initialize({ url, apiKey }) {
     if (!this.instance) {
       this.instance = new MultimodalLiveAPI({ url, apiKey });
-      this.instance.setConfig(this.config);
       this.setupEventListeners();
     }
     return this.instance;
@@ -114,11 +113,8 @@ const callControlBar = document.querySelector('call-control-bar');
 callControlBar.addEventListener('button-click', handleControlButton);
 mediaConfig.audioRecorder.on("data", data => sendData("audio/pcm;rate=16000", data));
 
-// Inicialización diferida
-setTimeout(() => {
-  liveAPI.connect();
+  liveAPI.connect(config);
   console.log("Conexión API inicializada:", liveAPI);
-}, 1111);
 
 // Manejadores de medios
 async function handleControlButton(e) {
