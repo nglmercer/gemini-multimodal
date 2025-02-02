@@ -97,7 +97,7 @@ import { difference, set } from "lodash";
 
     console.log("isModelTurn", data);
     if (!serverContent.modelTurn || !serverContent.modelTurn.parts) {
-      console.warn("modelTurn o parts no están definidos");
+      //console.warn("modelTurn o parts no están definidos",serverContent);
       return data;
     }
     let parts = serverContent.modelTurn?.parts;

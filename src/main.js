@@ -6,6 +6,7 @@ import './style.css';
 import './components/state.js';
 import './components/voicecomponent.js';
 import './components/audioviewer.js';
+import './components/formcomponent.js';
 import { EventEmitter } from "eventemitter3";
 import { blobToJSON, base64ToArrayBuffer, functions1 } from "./utils";
 import { AudioRecorder } from './media/audiorecorder.js';
@@ -16,8 +17,17 @@ import { SchemaType } from "@google/generative-ai";
 // Configuración de conexión
 const host = "generativelanguage.googleapis.com";
 const uri = `wss://${host}/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent`;
-const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
-
+const API_KEY = verifyAPIKey();
+function verifyAPIKey() {
+  // if exist api in local storage
+  let apikey = localStorage.getItem("API_KEY");
+  if (apikey && apikey !== "") {
+    return apikey;
+  } else {
+    apikey = import.meta.env.VITE_GEMINI_API_KEY;
+  }
+  return apikey;
+}
 // Validación de API Key
 if (typeof API_KEY !== "string") {
   throw new Error("set REACT_APP_GEMINI_API_KEY in .env");
@@ -38,7 +48,6 @@ const declaration = {
     required: ["json_graph"],
   },
 };
-
 // Configuración principal del modelo
 const config = {
   model: "models/gemini-2.0-flash-exp",
@@ -50,18 +59,18 @@ const config = {
   },
   systemInstruction: {
     parts: [{ text: `Eres una IA de traducción. Tu tarea es recibir un texto en español y devolver un JSON con las traducciones al inglés y japonés. 
-  o tambien si no se entiende o se hacen gestos acciones o onomatopeyas puedes narrarlo en el formato deseado.
-Formato de salida:  
-{  
-  "input": "<texto original en español usando muchos terminos en ingles tambien>"
-  "traducciones": {
-    "es": "<traducción al español>",
-    "en": "<traducción al inglés>",  
-    "jp": "<traducción al japonés>",
-    "pt": "<traducción al portugués>"
-  }  
-}  ` 
-}],
+      o tambien si no se entiende o se hacen gestos acciones o onomatopeyas puedes narrarlo en el formato deseado.
+    Formato de salida:  
+    {  
+      "input": "<texto original en español usando muchos terminos en ingles tambien>"
+      "traducciones": {
+        "es": "<traducción al español>",
+        "en": "<traducción al inglés>",  
+        "jp": "<traducción al japonés>",
+        "pt": "<traducción al portugués>"
+      }  
+    }  ` 
+    }],
 
   },
   tools: [
@@ -127,11 +136,7 @@ const callControlBar = document.querySelector('call-control-bar');
 callControlBar.addEventListener('button-click', handleControlButton);
 mediaConfig.audioRecorder.on("data", data => sendData("audio/pcm;rate=16000", data));
 
-// Inicialización diferida
-setTimeout(() => {
-  liveAPI.connect();
-  console.log("Conexión API inicializada:", liveAPI);
-}, 1111);
+liveAPI.connect();
 
 // Manejadores de medios
 async function handleControlButton(e) {
@@ -147,6 +152,9 @@ async function handleControlButton(e) {
       break;
     case "video":
       buttonState ? startWebcam() : stopWebcam();
+      break;
+    case "configure":
+      // create modal to change configuration
       break;
   }
 }

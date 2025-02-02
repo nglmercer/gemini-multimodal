@@ -202,7 +202,7 @@ class MultimodalLiveClient extends EventEmitter {
      */
     async receive(blob) {
         const response = await blobToJSON(blob);
-        console.log("Received response:", response);
+        //console.log("Received response:", response);
 
         if (isToolCallMessage(response)) {
             this.log("server.toolCall", response);
@@ -234,7 +234,7 @@ class MultimodalLiveClient extends EventEmitter {
 
             if (isModelTurn(serverContent)) {
                 if (!serverContent.modelTurn || !serverContent.modelTurn.parts) {
-                    console.warn("modelTurn or parts are undefined");
+                    //console.warn("modelTurn or parts are undefined",serverContent);
                     return serverContent;
                 }
 
