@@ -53,7 +53,11 @@ console.log(JSON.parse(localStorage.getItem("configAPI"))?.stringInstruction)
 const config = {
   model: "models/gemini-2.0-flash-exp",
   generationConfig: {
+    temperature: 1,
+    top_p: 0.95,
+    top_k: 40,
     responseModalities: "TEXT",
+    max_output_tokens: 1024,
     speechConfig: {
       voiceConfig: { prebuiltVoiceConfig: { voiceName: "Aoede" } },
     },

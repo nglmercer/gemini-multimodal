@@ -55,7 +55,7 @@ export class TranslationQueue extends HTMLElement {
       }
 
       // Aumentar el delay en función del tamaño del objeto o texto
-      const sizeFactor = currentSize / 200; // Ajusta este factor según sea necesario
+      const sizeFactor = currentSize / 100; // Ajusta este factor según sea necesario
       console.log("sizeFactor",baseDelay + sizeFactor * 1000);
       return baseDelay + sizeFactor * 1000; // Aumenta el delay en 1 segundo por cada 1000 caracteres
   }
