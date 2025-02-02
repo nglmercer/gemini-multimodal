@@ -12,7 +12,6 @@ class CallControlBar extends LitElement {
       flex-direction: row;
       justify-content: center;
       align-items: center;
-      background-color: #2c2c2c;
       padding: 10px;
       border-radius: 10px;
       color: white;

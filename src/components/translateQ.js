@@ -3,14 +3,16 @@ translationTemplate.innerHTML = `
   <style>
     :host {
       position: fixed;
-      bottom: 20px;
-      right: 20px;
-      background: rgba(0,0,0,0.8);
-      color: white;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: var(--background, rgba(0,0,0,0.8));
+      color: var(--color, white);
       padding: 15px;
       border-radius: 8px;
       max-width: 300px;
       display: none;
+      z-index: 1000;
     }
     
     .original {
@@ -26,6 +28,7 @@ translationTemplate.innerHTML = `
   <div class="original"></div>
   <div class="translations"></div>
 `;
+
 export class TranslationQueue extends HTMLElement {
     constructor() {
       super();
@@ -74,7 +77,20 @@ export class TranslationQueue extends HTMLElement {
         .map(([lang, text]) => `<div class="translation"><strong>${lang}:</strong> ${text}</div>`)
         .join('');
     }
-  }
-  if (!customElements.get('translation-queue')) {
-    customElements.define('translation-queue', TranslationQueue);
-  }
+
+    // Método para cambiar el color del texto
+    setColor(color) {
+      this.setAttribute('color', color);
+      this.shadowRoot.host.style.setProperty('--color', color);
+    }
+
+    // Método para cambiar el fondo
+    setBackground(background) {
+      this.setAttribute('background', background);
+      this.shadowRoot.host.style.setProperty('--background', background);
+    }
+}
+
+if (!customElements.get('translation-queue')) {
+  customElements.define('translation-queue', TranslationQueue);
+}
