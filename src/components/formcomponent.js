@@ -840,7 +840,6 @@ if (!customElements.get('custom-input')) {
     }
   
     setOptions(options) {
-      console.log("options EnhancedSelect", options);
       this.options = options;
       const optionsList = this.shadowRoot.querySelector('.options-list');
       

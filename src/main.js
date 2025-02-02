@@ -49,6 +49,7 @@ const declaration = {
   },
 };
 // Configuración principal del modelo
+console.log(JSON.parse(localStorage.getItem("configAPI")).stringInstruction)
 const config = {
   model: "models/gemini-2.0-flash-exp",
   generationConfig: {
@@ -58,7 +59,7 @@ const config = {
     },
   },
   systemInstruction: {
-    parts: [{ text: localStorage.getItem("configAPI")?.MAIN_INSTRUCTION || `Eres una IA de traducción. Tu tarea es recibir un texto en español y devolver un JSON con las traducciones al inglés y japonés. 
+    parts: [{ text: JSON.parse(localStorage.getItem("configAPI"))?.stringInstruction || `Eres una IA de traducción. Tu tarea es recibir un texto en español y devolver un JSON con las traducciones al inglés y japonés. 
       o tambien si no se entiende o se hacen gestos acciones o onomatopeyas puedes narrarlo en el formato deseado.
     Formato de salida:  
     {  
