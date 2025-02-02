@@ -71,7 +71,6 @@ class MultimodalLiveClient extends EventEmitter {
             });
         }
 
-        this.disconnect();
         this.isConnecting = true;
         if (config) this.config = config;
 
