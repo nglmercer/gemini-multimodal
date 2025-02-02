@@ -12,11 +12,6 @@ const {
     isTurnComplete,
 } = functions1;
 
-/**
- * Ensures that the input is an array.
- * @param {any} input - The input to ensure as an array.
- * @returns {Array} - The input as an array.
- */
 function ensureArray(input) {
     return Array.isArray(input) ? input : [input];
 }
@@ -27,16 +22,14 @@ class MultimodalLiveClient extends EventEmitter {
         this.url = url || `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent`;
         this.url += `?key=${apiKey}`;
         this.ws = null;
-        this.config = null;
         this.isConnecting = false;
         this.messageQueue = [];
         this.connectionRetries = 0;
         this.maxRetries = 3;
         this.connected = false;
-        this.reconnectionTimeout = null; // Tracks reconnection timeout
-        this.contextQueue = []; // Stores context messages
+        this.reconnectionTimeout = null;
+        this.contextQueue = [];
 
-        // Bind methods
         this.send = this.send.bind(this);
         this.connect = this.connect.bind(this);
         this._sendDirect = this._sendDirect.bind(this);
@@ -45,11 +38,6 @@ class MultimodalLiveClient extends EventEmitter {
         this.sendWithContext = this.sendWithContext.bind(this);
     }
 
-    /**
-     * Logs a message with a type and emits it as an event.
-     * @param {string} type - The type of log (e.g., "client.send").
-     * @param {string} message - The message to log.
-     */
     log(type, message) {
         const log = {
             date: new Date(),
@@ -59,11 +47,6 @@ class MultimodalLiveClient extends EventEmitter {
         this.emit("log", log);
     }
 
-    /**
-     * Connects to the WebSocket server.
-     * @param {Object} config - Configuration object for the connection.
-     * @returns {Promise<boolean>} - Resolves to true if the connection is successful.
-     */
     async connect(config) {
         if (this.isConnecting) {
             return new Promise((resolve) => {
@@ -73,7 +56,6 @@ class MultimodalLiveClient extends EventEmitter {
 
         this.disconnect();
         this.isConnecting = true;
-        if (config) this.config = config;
 
         try {
             const ws = new WebSocket(this.url);
@@ -93,7 +75,7 @@ class MultimodalLiveClient extends EventEmitter {
 
                 ws.addEventListener("error", onError);
                 ws.addEventListener("open", (ev) => {
-                    if (!this.config) {
+                    if (!config) {
                         this.isConnecting = false;
                         reject(new Error("Invalid config sent to `connect(config)`"));
                         return;
@@ -101,17 +83,15 @@ class MultimodalLiveClient extends EventEmitter {
 
                     this.log(`client.${ev.type}`, "Connected to socket");
                     this.emit("open");
-                    this.setConnected(true);
+                    this.connected = true;
                     this.ws = ws;
                     this.isConnecting = false;
                     this.emit("connected");
 
-                    // Send setup message
-                    const setupMessage = { setup: this.config };
+                    const setupMessage = { setup: config };
                     this._sendDirect(setupMessage);
                     this.log("client.send", "Setup message sent");
 
-                    // Process queued messages
                     this.processMessageQueue();
 
                     ws.removeEventListener("error", onError);
@@ -125,27 +105,17 @@ class MultimodalLiveClient extends EventEmitter {
         }
     }
 
-    /**
-     * Handles WebSocket connection errors.
-     * @param {Event} ev - The error event.
-     * @param {WebSocket} ws - The WebSocket instance.
-     * @param {Function} reject - The reject function of the Promise.
-     */
     handleConnectionError(ev, ws, reject) {
         this.disconnect(ws);
         const message = `Could not connect to "${this.url}"`;
         this.log(`server.${ev.type}`, message);
         this.isConnecting = false;
-        this.setConnected(false);
+        this.connected = false;
         reject(new Error(message));
     }
 
-    /**
-     * Handles WebSocket close events.
-     * @param {Event} ev - The close event.
-     */
     handleClose(ev) {
-        this.setConnected(false);
+        this.connected = false;
         let reason = ev.reason || "";
         if (reason.toLowerCase().includes("error")) {
             const prelude = "ERROR]";
@@ -157,25 +127,19 @@ class MultimodalLiveClient extends EventEmitter {
         this.log(`server.${ev.type}`, `Disconnected ${reason ? `with reason: ${reason}` : ""}`);
         this.emit("close", ev);
 
-        // Attempt reconnection if appropriate
         if (this.connectionRetries < this.maxRetries) {
             this.connectionRetries++;
             setTimeout(() => {
                 this.connect(this.config).catch(console.error);
-            }, 1000 * this.connectionRetries); // Exponential backoff
+            }, 1000 * this.connectionRetries);
         }
     }
 
-    /**
-     * Disconnects the WebSocket.
-     * @param {WebSocket} ws - The WebSocket instance to disconnect.
-     * @returns {boolean} - True if disconnected, false otherwise.
-     */
     disconnect(ws) {
         if ((!ws || this.ws === ws) && this.ws) {
             this.ws.close();
             this.ws = null;
-            this.setConnected(false);
+            this.connected = false;
             this.log("client.close", "Disconnected");
             if (this.reconnectionTimeout) {
                 clearTimeout(this.reconnectionTimeout);
@@ -186,9 +150,6 @@ class MultimodalLiveClient extends EventEmitter {
         return false;
     }
 
-    /**
-     * Processes the message queue.
-     */
     processMessageQueue() {
         while (this.messageQueue.length > 0) {
             const queuedMessage = this.messageQueue.shift();
@@ -196,13 +157,8 @@ class MultimodalLiveClient extends EventEmitter {
         }
     }
 
-    /**
-     * Receives and processes a WebSocket message.
-     * @param {Blob} blob - The received blob data.
-     */
     async receive(blob) {
         const response = await blobToJSON(blob);
-        //console.log("Received response:", response);
 
         if (isToolCallMessage(response)) {
             this.log("server.toolCall", response);
@@ -234,7 +190,6 @@ class MultimodalLiveClient extends EventEmitter {
 
             if (isModelTurn(serverContent)) {
                 if (!serverContent.modelTurn || !serverContent.modelTurn.parts) {
-                    //console.warn("modelTurn or parts are undefined",serverContent);
                     return serverContent;
                 }
 
@@ -264,10 +219,6 @@ class MultimodalLiveClient extends EventEmitter {
         }
     }
 
-    /**
-     * Sends real-time input to the server.
-     * @param {Array} chunks - The media chunks to send.
-     */
     sendRealtimeInput(chunks) {
         if (!this.connected || this.isConnecting) {
             const data = { realtimeInput: { mediaChunks: chunks } };
@@ -298,31 +249,18 @@ class MultimodalLiveClient extends EventEmitter {
         this.log(`client.realtimeInput`, message);
     }
 
-    /**
-     * Sends a tool response to the server.
-     * @param {Object} toolResponse - The tool response to send.
-     */
     sendToolResponse(toolResponse) {
         const message = { toolResponse };
         this._sendDirect(message);
         this.log(`client.toolResponse`, message);
     }
 
-    /**
-     * Adds parts to the context queue.
-     * @param {Array|Object} parts - The parts to add to the context.
-     */
     addToContext(parts) {
         parts = ensureArray(parts);
         const content = { role: "user", parts };
         this.contextQueue.push(content);
     }
 
-    /**
-     * Sends a message with context.
-     * @param {Array|Object} parts - The parts to send.
-     * @param {boolean} turnComplete - Whether the turn is complete.
-     */
     sendWithContext(parts, turnComplete = true) {
         parts = ensureArray(parts);
         const content = { role: "user", parts };
@@ -339,11 +277,6 @@ class MultimodalLiveClient extends EventEmitter {
         this.log(`client.send`, clientContentRequest);
     }
 
-    /**
-     * Sends a message to the server.
-     * @param {Array|Object} parts - The parts to send.
-     * @param {boolean} turnComplete - Whether the turn is complete.
-     */
     send(parts, turnComplete = true) {
         parts = ensureArray(parts);
         const content = { role: "user", parts };
@@ -359,10 +292,6 @@ class MultimodalLiveClient extends EventEmitter {
         this.log(`client.send`, clientContentRequest);
     }
 
-    /**
-     * Sends a message directly to the WebSocket.
-     * @param {Object} request - The request to send.
-     */
     _sendDirect(request) {
         if (!this.connected) {
             if (this.isConnecting) {
@@ -385,21 +314,8 @@ class MultimodalLiveClient extends EventEmitter {
         this.ws.send(str);
     }
 
-    /**
-     * Enqueues a message for later sending.
-     * @param {Object} message - The message to enqueue.
-     */
     enqueueMessage(message) {
         this.messageQueue.push(message);
-    }
-
-    /**
-     * Sets the connection status.
-     * @param {boolean} status - The connection status.
-     */
-    setConnected(status) {
-        this.connected = status;
-        this.emit(status ? "connected" : "disconnected");
     }
 }
 
@@ -414,9 +330,6 @@ class MultimodalLiveAPI {
         this.volume = 0;
     }
 
-    /**
-     * Initializes the audio streamer.
-     */
     async initializeAudioStreamer() {
         if (!this.audioStreamer) {
             try {
@@ -434,9 +347,6 @@ class MultimodalLiveAPI {
         }
     }
 
-    /**
-     * Attaches client listeners.
-     */
     attachClientListeners() {
         const onClose = () => {
             this.connected = false;
@@ -459,16 +369,10 @@ class MultimodalLiveAPI {
             .on("audio", onAudio);
     }
 
-    /**
-     * Detaches client listeners.
-     */
     detachClientListeners() {
         this.client.off("close").off("interrupted").off("audio");
     }
 
-    /**
-     * Connects to the WebSocket server.
-     */
     async connect(config) {
         if (!config) {
             throw new Error("Configuration has not been set");
@@ -480,45 +384,10 @@ class MultimodalLiveAPI {
         console.log("Connected successfully!", config);
     }
 
-    /**
-     * Disconnects from the WebSocket server.
-     */
     async disconnect() {
         this.client.disconnect();
         this.connected = false;
         console.log("Disconnected successfully.");
-    }
-
-    /**
-     * Sets the configuration.
-     * @param {Object} config - The configuration object.
-     */
-    setConfig(config) {
-        this.config = config;
-    }
-
-    /**
-     * Gets the current configuration.
-     * @returns {Object} - The current configuration.
-     */
-    getConfig() {
-        return this.config;
-    }
-
-    /**
-     * Gets the current volume.
-     * @returns {number} - The current volume.
-     */
-    getVolume() {
-        return this.volume;
-    }
-
-    /**
-     * Checks if the client is connected.
-     * @returns {boolean} - True if connected, false otherwise.
-     */
-    isConnected() {
-        return this.connected;
     }
 }
 

@@ -13,7 +13,6 @@ import { AudioRecorder } from './media/audiorecorder.js';
 import { WebcamCapture, ScreenCapture, MediaFrameExtractor,VideoContainerManager } from './media/videocapture.js';
 import { MultimodalLiveAPI } from "./clientemit.js";
 import { SchemaType } from "@google/generative-ai";
-import { live } from 'lit/directives/live.js';
 
 // Configuración de conexión
 const host = "generativelanguage.googleapis.com";
@@ -21,7 +20,7 @@ const uri = `wss://${host}/ws/google.ai.generativelanguage.v1alpha.GenerativeSer
 const API_KEY = verifyAPIKey();
 function verifyAPIKey() {
   // if exist api in local storage
-  let apikey = localStorage.getItem("configAPI")?.apikey;
+  let apikey = JSON.parse(localStorage.getItem("configAPI"))?.apikey;
   if (apikey && apikey !== "") {
     return apikey;
   } else {
@@ -30,10 +29,10 @@ function verifyAPIKey() {
   return apikey;
 }
 // Validación de API Key
-if (typeof API_KEY !== "string") {
+if (typeof API_KEY !== "string" || API_KEY.length < 1) {
   throw new Error("set REACT_APP_GEMINI_API_KEY in .env");
 }
-console.log(API_KEY)
+console.log("API_KEY", API_KEY);
 // Configuración de herramientas para el modelo
 const declaration = {
   name: "render_altair",
@@ -80,7 +79,6 @@ const config = {
     { functionDeclarations: [declaration] }
   ],
 };
-console.log(config)
 // Contexto de la API Live
 const LiveAPIContext = {
   instance: null,  
