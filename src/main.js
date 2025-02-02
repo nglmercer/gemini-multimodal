@@ -13,6 +13,7 @@ import { AudioRecorder } from './media/audiorecorder.js';
 import { WebcamCapture, ScreenCapture, MediaFrameExtractor,VideoContainerManager } from './media/videocapture.js';
 import { MultimodalLiveAPI } from "./clientemit.js";
 import { SchemaType } from "@google/generative-ai";
+import { live } from 'lit/directives/live.js';
 
 // Configuración de conexión
 const host = "generativelanguage.googleapis.com";
@@ -32,7 +33,7 @@ function verifyAPIKey() {
 if (typeof API_KEY !== "string") {
   throw new Error("set REACT_APP_GEMINI_API_KEY in .env");
 }
-
+console.log(API_KEY)
 // Configuración de herramientas para el modelo
 const declaration = {
   name: "render_altair",
@@ -49,7 +50,7 @@ const declaration = {
   },
 };
 // Configuración principal del modelo
-console.log(JSON.parse(localStorage.getItem("configAPI")).stringInstruction)
+console.log(JSON.parse(localStorage.getItem("configAPI"))?.stringInstruction)
 const config = {
   model: "models/gemini-2.0-flash-exp",
   generationConfig: {
@@ -79,16 +80,13 @@ const config = {
     { functionDeclarations: [declaration] }
   ],
 };
-
+console.log(config)
 // Contexto de la API Live
 const LiveAPIContext = {
-  instance: null,
-  config: config,
-  
-  initialize({ url, apiKey }) {
+  instance: null,  
+  initialize({ url, apiKey, config }) {
     if (!this.instance) {
-      this.instance = new MultimodalLiveAPI({ url, apiKey });
-      this.instance.setConfig(this.config);
+      this.instance = new MultimodalLiveAPI({ url, apiKey, config });
       this.setupEventListeners();
     }
     return this.instance;
@@ -130,15 +128,14 @@ const mediaConfig = {
 };
 
 // Inicialización de componentes
-const liveAPI = LiveAPIContext.initialize({ url: uri, apiKey: API_KEY });
+const liveAPI = LiveAPIContext.initialize({ url: uri, apiKey: API_KEY,config });
 const callControlBar = document.querySelector('call-control-bar');
 
 // Event Listeners
 callControlBar.addEventListener('button-click', handleControlButton);
 mediaConfig.audioRecorder.on("data", data => sendData("audio/pcm;rate=16000", data));
 
-liveAPI.connect();
-
+liveAPI.connect(config);
 // Manejadores de medios
 async function handleControlButton(e) {
   const { buttonType, buttonState } = e.detail;

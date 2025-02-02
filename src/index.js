@@ -32,6 +32,7 @@ const TRANSLATIONS = [
 
 // Función para generar el string de instrucciones
 function generateInstructionsString(mainInstruction, inputText, translations) {
+  if (translations.length === 0) translations = TRANSLATIONS;
   return `
 ${mainInstruction}
 Formato de salida:  

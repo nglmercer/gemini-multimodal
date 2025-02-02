@@ -71,6 +71,7 @@ class MultimodalLiveClient extends EventEmitter {
             });
         }
 
+        this.disconnect();
         this.isConnecting = true;
         if (config) this.config = config;
 
@@ -468,15 +469,15 @@ class MultimodalLiveAPI {
     /**
      * Connects to the WebSocket server.
      */
-    async connect() {
-        if (!this.config) {
+    async connect(config) {
+        if (!config) {
             throw new Error("Configuration has not been set");
         }
 
         this.client.disconnect();
-        await this.client.connect(this.config);
+        await this.client.connect(config);
         this.connected = true;
-        console.log("Connected successfully!", this.config);
+        console.log("Connected successfully!", config);
     }
 
     /**
