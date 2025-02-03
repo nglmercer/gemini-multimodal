@@ -56,7 +56,6 @@ const config = {
     top_p: 0.95,
     top_k: 40,
     responseModalities: "TEXT",
-    max_output_tokens: 1024,
     speechConfig: {
       voiceConfig: { prebuiltVoiceConfig: { voiceName: "Aoede" } },
     },
@@ -186,7 +185,10 @@ async function handleControlButton(e) {
       break;
   }
 }
-
+setTimeout(()=>{
+  mediaConfig.audioRecorder.start();
+},1000
+)
 const videoManager = new VideoContainerManager();
 videoManager.updateContainerVisibility();
 // Funciones de manejo de medios

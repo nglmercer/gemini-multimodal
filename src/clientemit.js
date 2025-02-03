@@ -27,12 +27,13 @@
       this.isConnecting = false;
       this.messageQueue = [];
       this.connectionRetries = 0;
-      this.maxRetries = 3;
+      this.maxRetries = 5;
       this.connected = false;
       this.reconnectionTimeout = null;
       this.contextQueue = [];
       this.config = null;
       this.intentionalClose = false; // Nuevo estado para manejar cierres intencionales
+      this.retryDelay = 1000; // Tiempo inicial de retraso (1 segundo)
 
       // Bindeo de métodos
       this.send = this.send.bind(this);
@@ -59,14 +60,12 @@
           this.once("connected", () => resolve(true));
         });
       }
-
-      this.disconnect();
+      this.disconnect(); // Asegúrate de cerrar cualquier conexión previa
       this.isConnecting = true;
-      this.intentionalClose = false; // Resetear el estado de cierre intencional
-
+      this.intentionalClose = false;
+  
       try {
         const ws = new WebSocket(this.url);
-
         ws.addEventListener("message", async (evt) => {
           if (evt.data instanceof Blob) {
             await this.receive(evt.data);
@@ -74,12 +73,12 @@
             console.log("Non-blob message received:", evt);
           }
         });
-
+  
         return new Promise((resolve, reject) => {
           const onError = (ev) => {
             this.handleConnectionError(ev, ws, reject);
           };
-
+  
           ws.addEventListener("error", onError);
           ws.addEventListener("open", (ev) => {
             if (!config) {
@@ -87,20 +86,16 @@
               reject(new Error("Invalid config sent to `connect(config)`"));
               return;
             }
-
             this.log(`client.${ev.type}`, "Connected to socket");
             this.emit("open");
             this.connected = true;
             this.ws = ws;
             this.isConnecting = false;
             this.emit("connected");
-
             const setupMessage = { setup: config };
             this._sendDirect(setupMessage);
             this.log("client.send", "Setup message sent");
-
-            this.processMessageQueue();
-
+            this.processMessageQueue(); // Procesa mensajes pendientes
             ws.removeEventListener("error", onError);
             ws.addEventListener("close", this.handleClose.bind(this));
             resolve(true);
@@ -111,6 +106,7 @@
         throw error;
       }
     }
+  
 
     handleConnectionError(ev, ws, reject) {
       this.disconnect(ws);
@@ -120,7 +116,6 @@
       this.connected = false;
       reject(new Error(message));
     }
-
     handleClose(ev) {
       this.connected = false;
       let reason = ev.reason || "";
@@ -133,14 +128,20 @@
       }
       this.log(`server.${ev.type}`, `Disconnected ${reason ? `with reason: ${reason}` : ""}`);
       this.emit("close", ev);
-
+  
+      // Intenta reconectar si no fue un cierre intencional
       if (!this.intentionalClose && this.connectionRetries < this.maxRetries) {
         this.connectionRetries++;
-        setTimeout(() => {
+        const delay = this.retryDelay * Math.pow(2, this.connectionRetries - 1); // Retraso exponencial
+        console.log(`Attempting to reconnect in ${delay}ms...`);
+        this.reconnectionTimeout = setTimeout(() => {
           this.connect(this.config).catch(console.error);
-        }, 1000 * this.connectionRetries);
+        }, delay);
+      } else {
+        console.log("Max retries reached. Stopping reconnection attempts.");
       }
     }
+  
 
     disconnect(ws) {
       if (this.ws && !ws){
@@ -321,11 +322,9 @@
         }
         throw new Error("WebSocket is not connected and max retries exceeded");
       }
-
       if (!this.ws) {
         throw new Error("WebSocket instance is null");
       }
-
       try {
         const str = JSON.stringify(request);
         this.ws.send(str);
