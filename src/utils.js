@@ -664,65 +664,72 @@ class LocalStorageManager {
   }
 }
 class Emitter {
-  // Almacenar todas las instancias de Emitter
   static instances = new Map();
+  static idCounter = 0;
 
   constructor(id) {
-    if (Emitter.instances.has(id)) {
-      return Emitter.instances.get(id); // Retornar la instancia existente si ya existe
+    if (!id) {
+      id = `emitter_${Emitter.idCounter++}`;
     }
-
-    this.id = id; // Identificador único de la instancia
-    this.events = {}; // Almacenar los eventos y sus listeners
-    this.history = []; // Almacenar el historial de datos
-    Emitter.instances.set(id, this); // Registrar la instancia en el mapa
+    if (Emitter.instances.has(id)) {
+      return Emitter.instances.get(id);
+    }
+    this.id = id;
+    this.events = {};
+    this.history = [];
+    Emitter.instances.set(id, this);
   }
 
-  // Método para escuchar eventos
   on(event, listener) {
     if (!this.events[event]) {
       this.events[event] = [];
     }
     this.events[event].push(listener);
-    return this; // Permite chaining
+    return this;
   }
 
-  // Método para emitir eventos
+  once(event, listener) {
+    const onceListener = (...args) => {
+      listener(...args);
+      this.off(event, onceListener);
+    };
+    this.on(event, onceListener);
+    return this;
+  }
+
   emit(event, ...args) {
     if (this.events[event]) {
       this.events[event].forEach((listener) => listener(...args));
     }
-    return this; // Permite chaining
+    return this;
   }
 
-  // Método para eliminar un listener específico
   off(event, listenerToRemove) {
-    if (this.events[event]) {
+    if (!this.events[event]) return this;
+    if (!listenerToRemove) {
+      delete this.events[event];
+    } else {
       this.events[event] = this.events[event].filter(
         (listener) => listener !== listenerToRemove
       );
     }
-    return this; // Permite chaining
+    return this;
   }
 
-  // Método para guardar datos en el historial
   saveToHistory(data) {
-    this.history.push(data); // Guardar el dato en el historial
-    return this; // Permite chaining
+    this.history.push(data);
+    return this;
   }
 
-  // Método para obtener todo el historial
   getHistory() {
-    return this.history; // Retornar el historial completo
+    return this.history;
   }
 
-  // Método para borrar todo el historial
   clearHistory() {
-    this.history = []; // Vaciar el historial
-    return this; // Permite chaining
+    this.history = [];
+    return this;
   }
 
-  // Método estático para recuperar una instancia por su ID
   static getInstance(id) {
     if (!Emitter.instances.has(id)) {
       throw new Error(`No Emitter instance found with id: ${id}`);

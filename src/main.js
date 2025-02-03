@@ -7,7 +7,6 @@ import './components/state.js';
 import './components/voicecomponent.js';
 import './components/audioviewer.js';
 import './components/formcomponent.js';
-import { EventEmitter } from "eventemitter3";
 import { blobToJSON, base64ToArrayBuffer, functions1 } from "./utils";
 import { AudioRecorder } from './media/audiorecorder.js';
 import { WebcamCapture, ScreenCapture, MediaFrameExtractor,VideoContainerManager } from './media/videocapture.js';
@@ -156,6 +155,8 @@ async function handleControlButton(e) {
     case "configure":
       document.querySelector('#modal_content').open();
       // create modal to change configuration
+    case "connect":
+      buttonState ? liveAPI.disconnect() : liveAPI.connect(config);
       break;
   }
 }
