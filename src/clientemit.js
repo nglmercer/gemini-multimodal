@@ -18,7 +18,6 @@
   // Actualización de la clase MultimodalLiveClient para que extienda de Emitter
   class MultimodalLiveClient extends Emitter {
     constructor({ url, apiKey }) {
-      // Se le asigna un id único (o podrías pasar uno fijo si lo deseas)
       super();
       this.url =
         url ||
@@ -32,8 +31,9 @@
       this.connected = false;
       this.reconnectionTimeout = null;
       this.contextQueue = [];
-      this.config = null; // Se guarda la configuración para reintentos
-  
+      this.config = null;
+      this.intentionalClose = false; // Nuevo estado para manejar cierres intencionales
+
       // Bindeo de métodos
       this.send = this.send.bind(this);
       this.connect = this.connect.bind(this);
@@ -42,7 +42,7 @@
       this.addToContext = this.addToContext.bind(this);
       this.sendWithContext = this.sendWithContext.bind(this);
     }
-  
+
     log(type, message) {
       const log = {
         date: new Date(),
@@ -51,22 +51,22 @@
       };
       this.emit("log", log);
     }
-  
+
     async connect(config) {
-      // Guarda la configuración para poder reintentar
       this.config = config;
       if (this.isConnecting) {
         return new Promise((resolve) => {
           this.once("connected", () => resolve(true));
         });
       }
-  
+
       this.disconnect();
       this.isConnecting = true;
-  
+      this.intentionalClose = false; // Resetear el estado de cierre intencional
+
       try {
         const ws = new WebSocket(this.url);
-  
+
         ws.addEventListener("message", async (evt) => {
           if (evt.data instanceof Blob) {
             await this.receive(evt.data);
@@ -74,12 +74,12 @@
             console.log("Non-blob message received:", evt);
           }
         });
-  
+
         return new Promise((resolve, reject) => {
           const onError = (ev) => {
             this.handleConnectionError(ev, ws, reject);
           };
-  
+
           ws.addEventListener("error", onError);
           ws.addEventListener("open", (ev) => {
             if (!config) {
@@ -87,20 +87,20 @@
               reject(new Error("Invalid config sent to `connect(config)`"));
               return;
             }
-  
+
             this.log(`client.${ev.type}`, "Connected to socket");
             this.emit("open");
             this.connected = true;
             this.ws = ws;
             this.isConnecting = false;
             this.emit("connected");
-  
+
             const setupMessage = { setup: config };
             this._sendDirect(setupMessage);
             this.log("client.send", "Setup message sent");
-  
+
             this.processMessageQueue();
-  
+
             ws.removeEventListener("error", onError);
             ws.addEventListener("close", this.handleClose.bind(this));
             resolve(true);
@@ -111,7 +111,7 @@
         throw error;
       }
     }
-  
+
     handleConnectionError(ev, ws, reject) {
       this.disconnect(ws);
       const message = `Could not connect to "${this.url}"`;
@@ -120,7 +120,7 @@
       this.connected = false;
       reject(new Error(message));
     }
-  
+
     handleClose(ev) {
       this.connected = false;
       let reason = ev.reason || "";
@@ -133,45 +133,47 @@
       }
       this.log(`server.${ev.type}`, `Disconnected ${reason ? `with reason: ${reason}` : ""}`);
       this.emit("close", ev);
-  
-      if (this.connectionRetries < this.maxRetries) {
+
+      if (!this.intentionalClose && this.connectionRetries < this.maxRetries) {
         this.connectionRetries++;
         setTimeout(() => {
           this.connect(this.config).catch(console.error);
         }, 1000 * this.connectionRetries);
       }
     }
-  
+
     disconnect(ws) {
-        if (this.ws === ws && this.ws || this.ws && !ws) {
-          this.ws.close();
-          console.log("Disconnected", this.ws);
-          this.ws = null;
-          this.connected = false;
-          this.log("client.close", "Disconnected");
-          if (this.reconnectionTimeout) {
-            clearTimeout(this.reconnectionTimeout);
-            this.reconnectionTimeout = null;
-          }
-          
-          // Limpiar todos los listeners
-          this.removeAllListeners();
-          
-          return true;
-        }
-        return false;
+      if (this.ws && !ws){
+        this.removeAllListeners();
+        this.intentionalClose = true; // Marcar como cierre intencional
+        this.ws.close();
+        this.ws = null;
+        this.connected = false;
       }
-  
+      if (this.ws === ws && this.ws) {
+        console.log("Disconnected", this.ws);
+        this.ws = null;
+        this.connected = false;
+        this.log("client.close", "Disconnected");
+        if (this.reconnectionTimeout) {
+          clearTimeout(this.reconnectionTimeout);
+          this.reconnectionTimeout = null;
+        }
+        return true;
+      }
+      return false;
+    }
+
     processMessageQueue() {
       while (this.messageQueue.length > 0) {
         const queuedMessage = this.messageQueue.shift();
         this._sendDirect(queuedMessage);
       }
     }
-  
+
     async receive(blob) {
       const response = await blobToJSON(blob);
-  
+
       if (isToolCallMessage(response)) {
         this.log("server.toolCall", response);
         this.emit("toolcall", response.toolCall);
@@ -187,7 +189,7 @@
         this.emit("setupcomplete");
         return;
       }
-  
+
       if (isServerContentMessage(response)) {
         const { serverContent } = response;
         if (isInterrupted(serverContent)) {
@@ -199,19 +201,19 @@
           this.log("server.send", "Turn complete");
           this.emit("turncomplete");
         }
-  
+
         if (isModelTurn(serverContent)) {
           if (!serverContent.modelTurn || !serverContent.modelTurn.parts) {
             return serverContent;
           }
-  
+
           const parts = serverContent.modelTurn.parts;
           const audioParts = parts.filter(
             (p) => p.inlineData && p.inlineData.mimeType.startsWith("audio/pcm")
           );
           const base64s = audioParts.map((p) => p.inlineData?.data);
           const otherParts = parts.filter((p) => !audioParts.includes(p));
-  
+
           base64s.forEach((b64) => {
             if (b64) {
               const data = base64ToArrayBuffer(b64);
@@ -219,7 +221,7 @@
               this.log(`server.audio`, `Buffer (${data.byteLength})`);
             }
           });
-  
+
           if (otherParts.length) {
             const content = { modelTurn: { parts: otherParts } };
             this.emit("content", content);
@@ -230,12 +232,12 @@
         console.log("Received unmatched message:", response);
       }
     }
-  
+
     sendRealtimeInput(chunks) {
       if (!this.connected || this.isConnecting) {
         const data = { realtimeInput: { mediaChunks: chunks } };
         this.enqueueMessage(data);
-  
+
         if (!this.reconnectionTimeout) {
           this.reconnectionTimeout = setTimeout(() => {
             if (!this.config) return;
@@ -248,7 +250,7 @@
         }
         return;
       }
-  
+
       const message =
         chunks.some((c) => c.mimeType.includes("audio")) && chunks.some((c) => c.mimeType.includes("image"))
           ? "audio + video"
@@ -257,55 +259,55 @@
           : chunks.some((c) => c.mimeType.includes("image"))
           ? "video"
           : "unknown";
-  
+
       const data = { realtimeInput: { mediaChunks: chunks } };
       this._sendDirect(data);
       this.log(`client.realtimeInput`, message);
     }
-  
+
     sendToolResponse(toolResponse) {
       const message = { toolResponse };
       this._sendDirect(message);
       this.log(`client.toolResponse`, message);
     }
-  
+
     addToContext(parts) {
       parts = ensureArray(parts);
       const content = { role: "user", parts };
       this.contextQueue.push(content);
     }
-  
+
     sendWithContext(parts, turnComplete = true) {
       parts = ensureArray(parts);
       const content = { role: "user", parts };
       const turnsWithContext = [...this.contextQueue, content];
-  
+
       const clientContentRequest = {
         clientContent: {
           turns: turnsWithContext,
           turnComplete,
         },
       };
-  
+
       this._sendDirect(clientContentRequest);
       this.log(`client.send`, clientContentRequest);
     }
-  
+
     send(parts, turnComplete = true) {
       parts = ensureArray(parts);
       const content = { role: "user", parts };
-  
+
       const clientContentRequest = {
         clientContent: {
           turns: [content],
           turnComplete,
         },
       };
-  
+
       this._sendDirect(clientContentRequest);
       this.log(`client.send`, clientContentRequest);
     }
-  
+
     _sendDirect(request) {
       if (!this.connected) {
         if (this.isConnecting) {
@@ -319,15 +321,26 @@
         }
         throw new Error("WebSocket is not connected and max retries exceeded");
       }
-  
+
       if (!this.ws) {
         throw new Error("WebSocket instance is null");
       }
-  
-      const str = JSON.stringify(request);
-      this.ws.send(str);
+
+      try {
+        const str = JSON.stringify(request);
+        this.ws.send(str);
+      } catch (error) {
+        if (error.message.includes("CLOSING") || error.message.includes("CLOSED")) {
+          this.connected = false;
+          if (!this.intentionalClose) {
+            this.connect(this.config).catch(console.error);
+          }
+        } else {
+          throw error;
+        }
+      }
     }
-  
+
     enqueueMessage(message) {
       this.messageQueue.push(message);
     }
