@@ -143,19 +143,24 @@
     }
   
     disconnect(ws) {
-      if ((!ws || this.ws === ws) && this.ws) {
-        this.ws.close();
-        this.ws = null;
-        this.connected = false;
-        this.log("client.close", "Disconnected");
-        if (this.reconnectionTimeout) {
-          clearTimeout(this.reconnectionTimeout);
-          this.reconnectionTimeout = null;
+        if (this.ws === ws && this.ws || this.ws && !ws) {
+          this.ws.close();
+          console.log("Disconnected", this.ws);
+          this.ws = null;
+          this.connected = false;
+          this.log("client.close", "Disconnected");
+          if (this.reconnectionTimeout) {
+            clearTimeout(this.reconnectionTimeout);
+            this.reconnectionTimeout = null;
+          }
+          
+          // Limpiar todos los listeners
+          this.removeAllListeners();
+          
+          return true;
         }
-        return true;
+        return false;
       }
-      return false;
-    }
   
     processMessageQueue() {
       while (this.messageQueue.length > 0) {
@@ -233,6 +238,7 @@
   
         if (!this.reconnectionTimeout) {
           this.reconnectionTimeout = setTimeout(() => {
+            if (!this.config) return;
             this.connect(this.config)
               .catch(console.error)
               .finally(() => {
@@ -400,9 +406,10 @@
     }
   
     async disconnect() {
-      this.client.disconnect();
-      this.connected = false;
-      console.log("Disconnected successfully.");
+        this.client.disconnect();
+        this.connected = false;
+        this.detachClientListeners(); // Limpiar listeners
+        console.log("Disconnected successfully.");
     }
   }
   

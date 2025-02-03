@@ -84,7 +84,8 @@ const config = {
 };
 // Contexto de la API Live
 const LiveAPIContext = {
-  instance: null,  
+  instance: null,
+  
   initialize({ url, apiKey, config }) {
     if (!this.instance) {
       this.instance = new MultimodalLiveAPI({ url, apiKey, config });
@@ -113,8 +114,34 @@ const LiveAPIContext = {
         }))
       }), 200);
     }
+  },
+
+  connect(config) {
+    if (this.instance) {
+      this.disconnect();
+    }
+    this.instance = new MultimodalLiveAPI({ url: uri, apiKey: API_KEY });
+    this.setupEventListeners();
+    this.instance.connect(config);
+  },
+
+  disconnect() {
+    if (this.instance) {
+      this.instance.disconnect();
+      this.instance = null;
+    }
+  },
+
+  reconnect(config) {
+    this.disconnect();
+    this.connect(config);
+  },
+  getInstance() {
+    if (!this.instance) return this.initialize({ url: uri, apiKey: API_KEY });
+    return this.instance;
   }
 };
+
 
 // Configuración de medios
 const mediaConfig = {
@@ -129,15 +156,13 @@ const mediaConfig = {
 };
 
 // Inicialización de componentes
-const liveAPI = LiveAPIContext.initialize({ url: uri, apiKey: API_KEY,config });
+LiveAPIContext.initialize({ url: uri, apiKey: API_KEY }).connect(config);
 const callControlBar = document.querySelector('call-control-bar');
 
 // Event Listeners
 callControlBar.addEventListener('button-click', handleControlButton);
 mediaConfig.audioRecorder.on("data", data => sendData("audio/pcm;rate=16000", data));
 
-liveAPI.connect(config);
-// Manejadores de medios
 async function handleControlButton(e) {
   const { buttonType, buttonState } = e.detail;
   console.log('Control:', buttonType, buttonState);
@@ -155,8 +180,9 @@ async function handleControlButton(e) {
     case "configure":
       document.querySelector('#modal_content').open();
       // create modal to change configuration
+      break;
     case "connect":
-      buttonState ? liveAPI.disconnect() : liveAPI.connect(config);
+      buttonState ? LiveAPIContext.getInstance().disconnect() : LiveAPIContext.getInstance().connect(config);
       break;
   }
 }
@@ -201,7 +227,7 @@ async function processMediaFrames(source) {
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       extractor.start(frame => {
-        liveAPI.client.sendRealtimeInput([{
+        LiveAPIContext.getInstance().client.sendRealtimeInput([{
           mimeType: frame.mimeType,
           data: frame.data
         }]);
@@ -217,12 +243,12 @@ async function processMediaFrames(source) {
 
 // Funciones de utilidad
 function sendData(type, data) {
-  liveAPI.client.sendRealtimeInput([{ mimeType: type, data }]);
+  LiveAPIContext.getInstance().client.sendRealtimeInput([{ mimeType: type, data }]);
 }
 
 function onSubmit(textInput = "texto de prueba", e) {
   if (e) e.preventDefault();
-  liveAPI.client.send([{ text: textInput }]);
+  LiveAPIContext.getInstance().client.send([{ text: textInput }]);
 }
 
 function setJSONString(jsonString) {

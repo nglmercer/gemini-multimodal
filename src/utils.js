@@ -704,14 +704,13 @@ class Emitter {
     return this;
   }
 
-  off(event, listenerToRemove) {
-    if (!this.events[event]) return this;
-    if (!listenerToRemove) {
-      delete this.events[event];
-    } else {
-      this.events[event] = this.events[event].filter(
-        (listener) => listener !== listenerToRemove
-      );
+  off(event, listener) {
+    if (this.events[event]) {
+      if (listener) {
+        this.events[event] = this.events[event].filter(l => l !== listener);
+      } else {
+        delete this.events[event];
+      }
     }
     return this;
   }
@@ -735,6 +734,9 @@ class Emitter {
       throw new Error(`No Emitter instance found with id: ${id}`);
     }
     return Emitter.instances.get(id);
+  }
+  removeAllListeners() {
+    this.events = {};
   }
 }
 export { functions1,LocalStorageManager, audioContext, blobToJSON, base64ToArrayBuffer, globalmap, Emitter };
